@@ -1,5 +1,13 @@
 # CHANGELOG.md
 
+## v1.1.3（2026-09-06）修复线上站名未生效：开启模板热更新
+
+- 提交哈希：（待回填）
+- 背景：v1.1.1 的改名未在线上生效——服务上次重启（12:36）早于改名提交（13:18），Jinja 模板缓存在 worker 内存中。
+- 内容：`app.py` 开启 `TEMPLATES_AUTO_RELOAD = True`，此后模板修改无需重启即可生效；本次仍需重启一次以加载新站名与该配置。
+- 涉及文件：`app.py`、`CHANGELOG.md`。
+- 回退方式：`git revert <hash>` 后 `sudo systemctl restart hk02`。
+
 ## v1.1.2（2026-09-06）AGENTS.md 统一 hk03 标准（开发铁律全套）
 
 - 提交哈希：（待回填）

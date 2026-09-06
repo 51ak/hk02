@@ -18,6 +18,7 @@ PHOTO_EXTS = {".jpg", ".jpeg", ".png", ".webp", ".gif", ".bmp"}
 
 app = Flask(__name__)
 app.config["MAX_CONTENT_LENGTH"] = 16 * 1024 * 1024
+app.config["TEMPLATES_AUTO_RELOAD"] = True
 
 CAUSES = ["概念不清", "方法不会", "逻辑思维", "审题失误", "计算错误", "粗心大意", "其他"]
 CAUSE_HIT = {"概念不清": 15, "方法不会": 12, "逻辑思维": 12, "审题失误": 8, "计算错误": 6, "粗心大意": 6, "其他": 5}
