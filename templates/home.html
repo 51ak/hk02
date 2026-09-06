@@ -1,55 +1,70 @@
 {% extends "base.html" %}
 {% block title %}{{ site_name }}{% endblock %}
 {% block content %}
-<div class="hero">
-  <div class="hero-deco">🏇 🚣 🎹</div>
-  <h1>{{ student_name }}，今天也要闪闪发光 ✨</h1>
-  <p class="hero-sub">{{ region }} · {{ stage_name }}{{ ' · ' + grade if grade }}</p>
-  {% if exam_days is not none and exam_days > 0 %}<span class="countdown-pill">距考试还有 {{ exam_days }} 天</span>{% endif %}
-  <p class="hero-quote">马术练平衡，赛艇练节奏，钢琴练专注——学习也一样，方法和坚持最美。</p>
-</div>
+<section class="hero">
+  <div class="hero-glow g1"></div><div class="hero-glow g2"></div><div class="hero-glow g3"></div>
+  <div class="hero-in">
+    <p class="hero-date">{{ today | replace('-', ' / ') }} · {{ stage_name }}{% if grade %} · {{ grade }}{% endif %}</p>
+    <h1>{{ student_name }}，今天也要闪闪发光</h1>
+    <p class="hero-sub">马术练平衡，赛艇练节奏，钢琴练专注 —— 学习也一样，方法与坚持最美。</p>
+    <div class="hero-chips">
+      <span class="hchip">🏇 {{ hobbies.split('、')[0] if hobbies else '马术' }}</span>
+      <span class="hchip">🚣 {{ hobbies.split('、')[1] if hobbies and hobbies.count('、') >= 1 else '赛艇' }}</span>
+      <span class="hchip">🎹 {{ hobbies.split('、')[2] if hobbies and hobbies.count('、') >= 2 else '钢琴' }}</span>
+      {% if exam_days is not none and exam_days > 0 %}<span class="hchip hot">⏳ 距考试 {{ exam_days }} 天</span>{% endif %}
+    </div>
+  </div>
+  <div class="hero-rings"><i></i><i></i><i></i></div>
+</section>
 
 <div class="home-stats">
   <a class="hstat {{ 'hot' if due_total else '' }}" href="review">
-    <b>{{ due_total }}</b><span>今日待复习</span><i>去复习 →</i>
+    <b>{{ due_total }}</b><span>今日待复习</span><i>{{ '立即去复习' if due_total else '今日已清零 ✓' }}</i>
   </a>
   <a class="hstat" href="ceping">
-    <b>{{ assess_n }}</b><span>已完成测评</span><i>AI 摸底 →</i>
+    <b>{{ assess_n }}</b><span>AI 摸底测评</span><i>{{ '继续完善画像' if assess_n < 3 else '画像已建立' }}</i>
   </a>
   <a class="hstat" href="dashboard">
-    <b>数学</b><span>旗舰模块</span><i>进入 →</i>
+    <b>数学</b><span>旗舰模块</span><i>掌握度引擎 · 智能练习</i>
+  </a>
+  <a class="hstat" href="thinking">
+    <b>思维</b><span>每日一题</span><i>门萨式训练打卡</i>
   </a>
 </div>
 
-<h2 class="sec-title">我的学科</h2>
+<div class="sec-head">
+  <h2>我的学科</h2>
+  <p>点击进入学科空间 · 每科都有练习 / 错题 / 复习 / 成绩 / 报告</p>
+</div>
 <div class="subject-grid">
   {% for c in cards %}
   <a class="subject-card" href="{{ 'dashboard' if c.code == 'math' else 'subject/' ~ c.code }}"
-     style="--sc: {{ c.color }}">
-    <div class="sc-top">
-      <span class="sc-icon">{{ c.icon }}</span>
-      {% if c.assessed %}<span class="sc-badge">已摸底</span>{% endif %}
-    </div>
+     style="--g1: {{ c.c1 }}; --g2: {{ c.c2 }}">
+    <span class="sc-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">{{ c.icon | safe }}</svg></span>
+    {% if c.assessed %}<span class="sc-badge">已摸底</span>{% endif %}
     <h3>{{ c.name }}</h3>
-    <p class="sc-desc">{{ c.desc }}</p>
-    {% if c.avg is not none %}
-    <div class="bar"><i class="{{ c.cls }}" style="width: {{ c.avg | int }}%"></i></div>
-    <p class="sc-meta">{{ c.label }} {{ c.avg }}{% if c.due_n %} · <em>{{ c.due_n }} 题待复习</em>{% endif %}</p>
-    {% else %}
-    <div class="bar"><i style="width: 0%"></i></div>
-    <p class="sc-meta">{{ '先做一次 AI 摸底 →' if c.code != 'math' else '开始练习建立画像 →' }}</p>
-    {% endif %}
+    <p class="sc-desc">{{ c.tag }}</p>
+    <div class="sc-foot">
+      {% if c.avg is not none %}
+      <div class="sc-bar"><i style="width: {{ c.avg | int }}%"></i></div>
+      <span class="sc-val">{{ c.label }} {{ c.avg }}</span>
+      {% else %}
+      <div class="sc-bar"><i style="width: 0%"></i></div>
+      <span class="sc-val">{{ '去练一组 →' if c.code != 'math' else '开始建立画像 →' }}</span>
+      {% endif %}
+    </div>
+    {% if c.due_n %}<span class="sc-due">{{ c.due_n }} 题待复习</span>{% endif %}
   </a>
   {% endfor %}
 </div>
 
 <div class="card tip-card">
-  <h2>💡 用好这套系统</h2>
+  <h2>用好这套系统</h2>
   <ul class="tips">
-    <li><span class="tag">第一次</span>每科先做一次「<a href="ceping">AI 摸底</a>」（学科/思维/认知三种），系统会为你建立能力画像</li>
-    <li><span class="tag">日常</span>错题拍照录入，AI 解答 + 错因分析 + 思维训练建议一步到位</li>
-    <li><span class="tag">复习</span>每天清空到期复习，间隔重复让记忆留在临界点上</li>
-    <li><span class="tag">定制</span>画像会随使用持续更新，学习内容也会越来越贴合你的特点</li>
+    <li><span class="tag">第一次</span>每科做一次「<a href="ceping">AI 摸底</a>」，系统为你建立能力画像，内容随使用越来越懂你</li>
+    <li><span class="tag">日常</span>错题拍照录入，AI 解答 + 错因深度分析 + 思维训练建议一步到位</li>
+    <li><span class="tag">复习</span>每天清空到期复习，间隔重复把记忆钉在遗忘临界点上</li>
+    <li><span class="tag">报告</span>每科随时生成 AI 报告：优势、短板与四周定制方案</li>
   </ul>
 </div>
 {% endblock %}

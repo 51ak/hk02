@@ -2,7 +2,7 @@
 {% block title %}测评报告 · {{ site_name }}{% endblock %}
 {% block content %}
 <div class="card hero-report">
-  <h2>{{ meta.icon if meta }} {{ meta.name if meta }} · {{ kind_name }} 报告</h2>
+  <h2>{{ meta.name if meta }} · {{ kind_name }}报告</h2>
   <p class="tiny">{{ a.created }} · {{ student_name }} · {{ region }}</p>
   <div class="report-body pre">{{ a.report }}</div>
 </div>

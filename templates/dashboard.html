@@ -1,21 +1,20 @@
 {% extends "base.html" %}
 {% block content %}
-<div class="card toolbox">
-  <h2>📐 数学中心</h2>
-  <div class="tool-links">
-    <a href="practice">🎯 智能练习</a>
-    <a href="mastery">📊 掌握度图谱</a>
-    <a href="scores">📈 成绩趋势</a>
-    <a href="plan">🗓 学习计划</a>
-    <a href="report">📋 AI 报告</a>
+<div class="card dash-hero">
+  <div class="dash-hero-in">
+    <div>
+      <h2>综合掌握度</h2>
+      <p class="tiny">基于练习、复习与错题的自适应建模</p>
+      <div class="stat-num {{ cls }} big">{{ overall_m }}<small>/100 · {{ label }}</small></div>
+    </div>
+    <div class="ring {{ cls }}">
+      <i style="background: conic-gradient(currentColor {{ overall_m | int }}%, rgba(255,255,255,.25) 0)"></i>
+      <b>{{ overall_m | int }}</b>
+    </div>
   </div>
 </div>
+
 <div class="stat-grid">
-  <div class="card stat">
-    <div class="stat-num {{ cls }}">{{ overall_m }}<small>/100</small></div>
-    <div class="stat-name">综合掌握度 · {{ label }}</div>
-    <div class="bar"><i class="{{ cls }}" style="width: {{ overall_m|int }}%"></i></div>
-  </div>
   <a class="card stat link" href="review">
     <div class="stat-num {{ 'bad' if due_n else 'good' }}">{{ due_n }}</div>
     <div class="stat-name">今日待复习错题</div>
@@ -29,7 +28,12 @@
   <a class="card stat link" href="practice">
     <div class="stat-num">{{ practice_n }}</div>
     <div class="stat-name">累计练习题次</div>
-    <div class="stat-go">开始今日练习 →</div>
+    <div class="stat-go">智能练习 →</div>
+  </a>
+  <a class="card stat link" href="report">
+    <div class="stat-num">AI</div>
+    <div class="stat-name">数学诊断报告</div>
+    <div class="stat-go">查看 →</div>
   </a>
 </div>
 
@@ -38,7 +42,7 @@
   <h2>最近成绩</h2>
   <div class="score-chips">
     {% for s in scores %}
-    <span class="chip">{{ s.date[5:] }} {{ s.kind }} <b>{{ s.score|int }}/{{ s.full|int }}</b></span>
+    <span class="chip">{{ s.date[5:] }} {{ s.kind }} <b>{{ s.score | int }}/{{ s.full | int }}</b></span>
     {% endfor %}
     {% if trend is not none %}
     <span class="chip {{ 'good' if trend > 0 else ('bad' if trend < 0 else '') }}">
@@ -55,7 +59,7 @@
     {% for m in mods %}
     <div class="mod-row">
       <span class="mod-name">{{ m.module }}</span>
-      <div class="bar grow"><i class="{{ m.cls }}" style="width: {{ m.avg|int }}%"></i></div>
+      <div class="bar grow"><i class="{{ m.cls }}" style="width: {{ m.avg | int }}%"></i></div>
       <span class="mod-val">{{ m.avg }}</span>
     </div>
     {% endfor %}

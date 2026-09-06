@@ -1,25 +1,48 @@
 STAGES = {"cj": "初中", "gz": "高中"}
 
+_SUBJECT_ICON = {
+    "math": '<circle cx="12" cy="5" r="1.6"/><path d="M11 6.6 6.2 19M13 6.6 17.8 19M8.4 15.4h7.2"/>',
+    "chinese": '<path d="M12 6c-2-1.6-4.5-2-8-2v13c3.5 0 6 .4 8 2 2-1.6 4.5-2 8-2V4c-3.5 0-6 .4-8 2z"/><path d="M12 6v13"/>',
+    "english": '<path d="M4 5h16v11h-9l-4 3.5V16H4z"/><path d="M9.6 13l2.4-4.8 2.4 4.8M10.7 11.2h2.6"/>',
+    "physics": '<circle cx="12" cy="12" r="1.3"/><ellipse cx="12" cy="12" rx="9" ry="3.8"/><ellipse cx="12" cy="12" rx="9" ry="3.8" transform="rotate(60 12 12)"/><ellipse cx="12" cy="12" rx="9" ry="3.8" transform="rotate(120 12 12)"/>',
+    "chemistry": '<path d="M10 3h4M11 3.5v5.5l-5.4 9A2 2 0 0 0 7.3 21h9.4a2 2 0 0 0 1.7-3L13 9V3.5"/><path d="M8.3 15.5h7.4"/>',
+    "biology": '<path d="M5 19C5 10 11 4 20 4c0 9-6 15-15 15z"/><path d="M5 19c3-6.5 7-10.5 12-12.5"/>',
+    "geography": '<circle cx="12" cy="12" r="8.5"/><ellipse cx="12" cy="12" rx="3.8" ry="8.5"/><path d="M3.5 12h17"/>',
+    "history": '<path d="M4.5 9h15L12 4z"/><path d="M6.5 9v9M12 9v9M17.5 9v9"/><path d="M4 18h16M3.5 21h17"/>',
+    "politics": '<path d="M12 4.5v15M8.5 19.5h7M5 8h14"/><circle cx="12" cy="6.3" r="1.2"/><path d="M7 8 4.8 13a2.7 2.7 0 0 0 4.4 0zM17 8l-2.2 5a2.7 2.7 0 0 0 4.4 0z"/>',
+    "pe": '<path d="M8 4h8v5a4 4 0 0 1-8 0z"/><path d="M8 5.5H5.2v1.6a3 3 0 0 0 3 3M16 5.5h2.8v1.6a3 3 0 0 1-3 3"/><path d="M12 13.5v3.5M9.5 20.5h5M10.5 17h3v3.5h-3z"/>',
+}
+
 SUBJECTS = {
-    "math": {"name": "数学", "icon": "📐", "color": "#4f46e5", "desc": "掌握度引擎 · 智能练习 · 错题精讲",
+    "math": {"name": "数学", "c1": "#6d5ae0", "c2": "#9a7bff",
+             "tag": "旗舰模块 · 掌握度引擎 · 智能练习 · 错题精讲",
              "boards": ["数与式", "方程与不等式", "函数", "几何", "统计与概率"]},
-    "chinese": {"name": "语文", "icon": "📖", "color": "#dc2626", "desc": "古诗文 · 阅读 · 写作 · 基础知识",
+    "chinese": {"name": "语文", "c1": "#e05c6e", "c2": "#f0937a",
+                "tag": "基础知识 · 古诗文 · 阅读 · 写作",
                 "boards": ["基础知识", "古诗文", "阅读理解", "写作"]},
-    "english": {"name": "英语", "icon": "🔤", "color": "#2563eb", "desc": "词汇 · 语法 · 阅读 · 听说",
+    "english": {"name": "英语", "c1": "#4f7cf7", "c2": "#7aa6ff",
+                "tag": "词汇 · 语法 · 阅读 · 听说",
                 "boards": ["词汇", "语法", "阅读理解", "写作", "听说"]},
-    "physics": {"name": "物理", "icon": "⚡", "color": "#d97706", "desc": "声光热 · 力学 · 电学",
+    "physics": {"name": "物理", "c1": "#e88f2e", "c2": "#f5b45e",
+                "tag": "声光热 · 力学 · 电学",
                 "boards": ["声与光", "热学", "力学", "电学"]},
-    "chemistry": {"name": "化学", "icon": "🧪", "color": "#059669", "desc": "初三开课 · 提前了解",
+    "chemistry": {"name": "化学", "c1": "#1f9e77", "c2": "#54c49c",
+                  "tag": "初三开课 · 提前起步",
                   "boards": ["物质与变化", "分子与原子", "化学方程式", "金属与酸碱盐"]},
-    "biology": {"name": "生物", "icon": "🌱", "color": "#16a34a", "desc": "初二下小中考重点",
+    "biology": {"name": "生物", "c1": "#4ba53c", "c2": "#82c86e",
+                "tag": "初二下小中考重点",
                 "boards": ["生物体结构", "植物", "人体生理", "遗传与生态"]},
-    "geography": {"name": "地理", "icon": "🗺", "color": "#0891b2", "desc": "初二下小中考重点",
+    "geography": {"name": "地理", "c1": "#2396b5", "c2": "#64c4da",
+                  "tag": "初二下小中考重点",
                   "boards": ["地球与地图", "世界地理", "中国地理"]},
-    "history": {"name": "历史", "icon": "🏛", "color": "#92400e", "desc": "中国古代 · 近现代 · 世界",
+    "history": {"name": "历史", "c1": "#a9742f", "c2": "#d0a26c",
+                "tag": "中国古代 · 近现代 · 世界",
                 "boards": ["中国古代史", "中国近现代史", "世界史"]},
-    "politics": {"name": "道德与法治", "icon": "⚖", "color": "#7c3aed", "desc": "道德 · 法律 · 国情",
+    "politics": {"name": "道德与法治", "c1": "#b455d6", "c2": "#d88af0",
+                 "tag": "道德 · 法律 · 国情",
                  "boards": ["道德与心理", "法律", "国情国策"]},
-    "pe": {"name": "体育", "icon": "🏇", "color": "#e11d48", "desc": "中考项目 + 马术/赛艇专项",
+    "pe": {"name": "体育", "c1": "#e0457a", "c2": "#f284ab",
+           "tag": "中考项目 + 马术/赛艇专项",
            "boards": ["耐力与跑步", "跳绳与灵敏", "力量素质", "专项（马术/赛艇）"]},
 }
 
@@ -27,7 +50,13 @@ ASSESS_KINDS = {
     "subject": "学科摸底（AI 按科目与年级出题，全面探测知识板块强弱）",
     "thinking": "思维摸底（逻辑演绎 · 横向思维 · 论证分析，源自门萨式题库）",
     "iq": "认知摸底（数字推理 · 图形规律 · 逻辑矩阵，探测认知与智商特点）",
+    "practice": "AI 专项练习（每次一组，即时批改与讲评）",
 }
+
+ASSESS_KIND_LABEL = {"subject": "学科摸底", "thinking": "思维摸底", "iq": "认知摸底", "practice": "AI 练习"}
+
+for _code, _meta in SUBJECTS.items():
+    _meta["icon"] = _SUBJECT_ICON[_code]
 
 MODULE_TREE = [
     ("cj", "数与式", ["实数与运算", "整式与因式分解", "分式", "二次根式"]),

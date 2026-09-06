@@ -326,9 +326,17 @@ def init_db():
             questions TEXT DEFAULT '[]', answers TEXT DEFAULT '[]',
             report TEXT DEFAULT '', done INTEGER DEFAULT 0
         );
+        CREATE TABLE IF NOT EXISTS subject_reports (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            subject TEXT NOT NULL, created TEXT, report TEXT DEFAULT ''
+        );
         """
     )
     db.commit()
+    scols = [r[1] for r in db.execute("PRAGMA table_info(scores)").fetchall()]
+    if "subject" not in scols:
+        db.execute("ALTER TABLE scores ADD COLUMN subject TEXT DEFAULT 'math'")
+        db.commit()
     kcols = [r[1] for r in db.execute("PRAGMA table_info(kp)").fetchall()]
     if "subject" not in kcols:
         db.execute("ALTER TABLE kp ADD COLUMN subject TEXT DEFAULT 'math'")
@@ -530,7 +538,7 @@ def overall(stage):
 
 
 def score_rows():
-    return q("SELECT * FROM scores ORDER BY date DESC, id DESC")
+    return q("SELECT * FROM scores WHERE subject='math' ORDER BY date DESC, id DESC")
 
 
 def cause_distribution(stage):
@@ -594,6 +602,39 @@ def auth():
     return None
 
 
+_TAB_BY_PATH = {"dashboard": "hub", "practice": "practice", "quiz": "practice", "mistakes": "mistakes",
+                "solve": "mistakes", "review": "review", "mastery": "mastery", "scores": "scores",
+                "plan": "plan", "report": "report"}
+
+
+def subject_shell():
+    seg = request.path.strip("/").split("/")
+    if not seg[0] or seg[0] not in _TAB_BY_PATH and seg[0] != "subject":
+        return None
+    if seg[0] == "subject":
+        if len(seg) < 2 or seg[1] not in seed_data.SUBJECTS:
+            return None
+        code = seg[1]
+        tab = seg[2] if len(seg) > 2 else "hub"
+    else:
+        code = request.args.get("subject", "math")
+        if code not in seed_data.SUBJECTS:
+            code = "math"
+        tab = _TAB_BY_PATH.get(seg[0], "hub")
+    tabs = [
+        ("hub", "总览", "dashboard" if code == "math" else f"subject/{code}"),
+        ("practice", "练习", "practice" if code == "math" else f"subject/{code}/practice"),
+        ("mistakes", "错题本", f"mistakes?subject={code}"),
+        ("review", "复习", f"review?subject={code}"),
+        ("mastery", "掌握度", "mastery" if code == "math" else f"subject/{code}/mastery"),
+        ("scores", "成绩", "scores" if code == "math" else f"subject/{code}/scores"),
+        ("report", "报告", "report" if code == "math" else f"subject/{code}/report"),
+    ]
+    if code == "math":
+        tabs.insert(6, ("plan", "计划", "plan"))
+    return {"code": code, "meta": seed_data.SUBJECTS[code], "tab": tab, "tabs": tabs}
+
+
 @app.context_processor
 def inject_common():
     stage = cfg("stage", "cj")
@@ -610,6 +651,8 @@ def inject_common():
         "region": cfg("region", "江苏南京"),
         "hobbies": cfg("hobbies", "马术、赛艇、钢琴"),
         "subjects": seed_data.SUBJECTS,
+        "kind_labels": seed_data.ASSESS_KIND_LABEL,
+        "sb": subject_shell(),
     }
 
 
@@ -635,8 +678,9 @@ def home():
         due_n = q1("""SELECT COUNT(*) c FROM mistakes m JOIN kp ON m.kp_id=kp.id
                       WHERE m.status='active' AND m.next_review<=? AND kp.subject=?""", (today_iso(), code))["c"]
         cards.append({
-            "code": code, "name": meta["name"], "icon": meta["icon"], "color": meta["color"],
-            "desc": meta["desc"], "avg": round(avg, 1) if avg is not None else None,
+            "code": code, "name": meta["name"], "tag": meta["tag"],
+            "c1": meta["c1"], "c2": meta["c2"], "icon": meta["icon"],
+            "avg": round(avg, 1) if avg is not None else None,
             "label": mastery_label(avg)[0] if avg is not None else "未开始",
             "cls": mastery_label(avg)[1] if avg is not None else "",
             "mistakes_n": mistakes_n, "due_n": due_n,
@@ -657,7 +701,7 @@ def dashboard():
     mistakes_n = q1("SELECT COUNT(*) c FROM mistakes m JOIN kp ON m.kp_id=kp.id WHERE kp.subject='math' AND kp.stage=?", (stage,))["c"]
     practice_n = q1("SELECT COUNT(*) c FROM practice_log")["c"]
     weak = weak_kps(stage, 5)
-    scores = list(reversed(q("SELECT * FROM scores ORDER BY date DESC, id DESC LIMIT 8")))
+    scores = list(reversed(q("SELECT * FROM scores WHERE subject='math' ORDER BY date DESC, id DESC LIMIT 8")))
     mods = module_stats(stage)
     tips = build_suggestions(stage)
     trend = None
@@ -1012,11 +1056,120 @@ def subject_hub(code):
                            mistakes_n=mistakes_n, due_n=due_n, rows=rows, latest=latest)
 
 
+@app.route("/subject/<code>/practice")
+def subject_practice(code):
+    if code == "math":
+        return redirect("practice")
+    if code not in seed_data.SUBJECTS:
+        abort(404)
+    meta = seed_data.SUBJECTS[code]
+    history = q("SELECT * FROM assessments WHERE subject=? AND done=1 ORDER BY id DESC LIMIT 6", (code,))
+    return render_template("subject_practice.html", code=code, meta=meta, history=history)
+
+
+@app.route("/subject/<code>/mastery")
+def subject_mastery(code):
+    if code == "math":
+        return redirect("mastery")
+    if code not in seed_data.SUBJECTS:
+        abort(404)
+    meta = seed_data.SUBJECTS[code]
+    boards = q("SELECT * FROM kp WHERE subject=? ORDER BY id", (code,))
+    return render_template("subject_mastery.html", code=code, meta=meta, boards=boards)
+
+
+@app.route("/subject/<code>/scores")
+def subject_scores(code):
+    if code == "math":
+        return redirect("scores")
+    if code not in seed_data.SUBJECTS:
+        abort(404)
+    meta = seed_data.SUBJECTS[code]
+    rows = q("SELECT * FROM scores WHERE subject=? ORDER BY date DESC, id DESC", (code,))
+    pts = []
+    seq = list(reversed(rows))[-12:]
+    for s in seq:
+        pts.append({"date": s["date"], "kind": s["kind"] or "考试",
+                    "pct": round(s["score"] * 100 / (s["full"] or 100), 1)})
+    w, h, pad = 640, 220, 30
+    chart = None
+    if len(pts) >= 2:
+        step = (w - 2 * pad) / (len(pts) - 1)
+        coords = []
+        for idx, p in enumerate(pts):
+            x = round(pad + idx * step)
+            y = round(h - pad - (p["pct"] / 100) * (h - 2 * pad))
+            coords.append((x, y))
+        chart = {"w": w, "h": h, "coords": coords, "labels": [p["date"][5:] for p in pts]}
+    return render_template("subject_scores.html", code=code, meta=meta, rows=rows, pts=pts, chart=chart)
+
+
+@app.route("/subject/<code>/report")
+def subject_report(code):
+    if code == "math":
+        return redirect("report")
+    if code not in seed_data.SUBJECTS:
+        abort(404)
+    meta = seed_data.SUBJECTS[code]
+    boards = q("SELECT * FROM kp WHERE subject=? ORDER BY id", (code,))
+    avg = q1("SELECT AVG(mastery) a FROM kp WHERE subject=?", (code,))["a"]
+    rows = q("""SELECT m.*, kp.name kp_name FROM mistakes m JOIN kp ON m.kp_id=kp.id
+                WHERE kp.subject=? ORDER BY m.id DESC LIMIT 8""", (code,))
+    dist, total = cause_distribution(code)
+    scores = q("SELECT * FROM scores WHERE subject=? ORDER BY date DESC, id DESC LIMIT 6", (code,))
+    latest = q1("SELECT * FROM subject_reports WHERE subject=? ORDER BY id DESC LIMIT 1", (code,))
+    latest_assess = q1("SELECT * FROM assessments WHERE subject=? AND done=1 ORDER BY id DESC LIMIT 1", (code,))
+    return render_template("subject_report.html", code=code, meta=meta, boards=boards,
+                           avg=round(avg, 1) if avg is not None else None,
+                           label=mastery_label(avg)[0] if avg is not None else "未开始",
+                           cls=mastery_label(avg)[1] if avg is not None else "",
+                           rows=rows, dist=dist, total=total, scores=scores,
+                           latest=latest, latest_assess=latest_assess,
+                           ai_error=request.args.get("err", ""))
+
+
+@app.route("/subject/<code>/gen_report", methods=["POST"])
+def subject_gen_report(code):
+    if code not in seed_data.SUBJECTS:
+        abort(404)
+    meta = seed_data.SUBJECTS[code]
+    boards = q("SELECT name, mastery, attempts FROM kp WHERE subject=? ORDER BY id", (code,))
+    dist, total = cause_distribution(code)
+    scores = q("SELECT date, kind, score, full FROM scores WHERE subject=? ORDER BY date DESC LIMIT 6", (code,))
+    assess = q("SELECT kind, created, report FROM assessments WHERE subject=? AND done=1 ORDER BY id DESC LIMIT 2", (code,))
+    board_txt = "；".join(f"{b['name']}掌握度{b['mastery']:.0f}（自评/练习{b['attempts']}次）" for b in boards)
+    cause_txt = "；".join(f"{d['cause']}{d['c']}次" for d in dist) or "暂无"
+    score_txt = "；".join(f"{s['date']}{s['kind']}{s['score']:g}/{s['full']:g}" for s in scores) or "暂无"
+    assess_txt = "\n".join(f"- {seed_data.ASSESS_KIND_LABEL.get(a['kind'], a['kind'])}（{a['created'][:10]}）：{a['report'][:300]}" for a in assess) or "暂无"
+    ask = (
+        f"{profile_text()}\n科目：【{meta['name']}】\n\n"
+        f"板块掌握度：{board_txt}\n错因分布：{cause_txt}\n近期成绩：{score_txt}\n"
+        f"近期测评结论：\n{assess_txt}\n\n"
+        "请严格按以下小节输出，直接以方括号标题开头：\n"
+        "【总体判断】结合数据与她的个人特点，评价当前该科学习状态（3~4 句）\n"
+        "【优势亮点】2~3 条（结合作答证据与她的兴趣特长）\n"
+        "【问题诊断】2~3 条（指向具体板块/错因，说明可能的根源）\n"
+        "【四周提升方案】按周列出行动要点，把内容与她的兴趣场景结合，具体可执行\n"
+        "【本周三件事】立刻能做的三件小事"
+    )
+    content, err = ai_chat([
+        {"role": "system", "content": "你是因材施教的教育分析师，评语具体真诚，善于用数据说话。"},
+        {"role": "user", "content": ask},
+    ], max_tokens=3000)
+    if err:
+        return redirect(f"../{code}/report?err=" + err[:80])
+    run("INSERT INTO subject_reports (subject, report, created) VALUES (?,?,?)",
+        (code, content.strip(), now_iso()))
+    return redirect(f"../{code}/report")
+
+
 def gen_questions_ai(subject_code, kind):
     meta = seed_data.SUBJECTS.get(subject_code, {})
-    if kind == "subject":
+    n = 5 if kind == "practice" else 6
+    if kind in ("subject", "practice"):
+        purpose = "一套学科摸底卷" if kind == "subject" else "一组课后专项练习"
         ask = (
-            f"请为{profile_text()}出一套【{meta.get('name', subject_code)}】学科摸底卷，共 6 题，"
+            f"请为{profile_text()}出{purpose}【{meta.get('name', subject_code)}】共 {n} 题，"
             f"覆盖板块：{'、'.join(meta.get('boards', []))}，难度由易到难阶梯分布。"
             "其中至少 1 题情境结合她的兴趣（马术/赛艇/钢琴），让题目亲切有趣。"
             "题型以简答为主（可含 1 道默写/计算/赏析）。"
@@ -1108,7 +1261,7 @@ def ceping_do():
 def ai_grade_assessment(a, answers):
     questions = json.loads(a["questions"])
     meta = seed_data.SUBJECTS.get(a["subject"], {})
-    kind_name = seed_data.ASSESS_KINDS.get(a["kind"], a["kind"])
+    kind_name = seed_data.ASSESS_KIND_LABEL.get(a["kind"], a["kind"])
     lines = []
     for i, (qs, ans) in enumerate(zip(questions, answers), 1):
         lines.append(f"第{i}题（板块：{qs.get('board', '')}）：{qs['text']}\n参考答案：{qs.get('ref', '')}\n她的作答：{ans or '（未作答）'}")
@@ -1175,7 +1328,7 @@ def ceping_result():
     answers = json.loads(a["answers"])
     return render_template("assess_result.html", a=a, questions=questions, answers=answers,
                            meta=seed_data.SUBJECTS.get(a["subject"], {}),
-                           kind_name=seed_data.ASSESS_KINDS.get(a["kind"], a["kind"]))
+                           kind_name=seed_data.ASSESS_KIND_LABEL.get(a["kind"], a["kind"]))
 
 
 @app.route("/practice")
@@ -1300,11 +1453,16 @@ def save_score():
     score = request.form.get("score", type=float)
     full = request.form.get("full", 100, type=float) or 100
     note = request.form.get("note", "").strip()
+    subject = request.form.get("subject", "math")
+    if subject not in seed_data.SUBJECTS:
+        subject = "math"
     if score is None or not d:
         abort(400)
-    run("INSERT INTO scores (date, kind, score, full, note) VALUES (?,?,?,?,?)",
-        (d, kind, score, full, note))
-    return redirect("scores")
+    run("INSERT INTO scores (date, kind, score, full, note, subject) VALUES (?,?,?,?,?,?)",
+        (d, kind, score, full, note, subject))
+    if subject == "math":
+        return redirect("scores")
+    return redirect(f"subject/{subject}/scores")
 
 
 @app.route("/delete_score", methods=["POST"])
@@ -1480,7 +1638,7 @@ def report():
     mods = module_stats(stage)
     weak = weak_kps(stage, 5)
     dist, total = cause_distribution(stage)
-    scores = list(reversed(q("SELECT * FROM scores ORDER BY date DESC, id DESC LIMIT 10")))
+    scores = list(reversed(q("SELECT * FROM scores WHERE subject='math' ORDER BY date DESC, id DESC LIMIT 10")))
     trend = None
     if len(scores) >= 2:
         pts = [round(s["score"] * 100 / (s["full"] or 100)) for s in scores]

@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+{% block title %}{{ meta.name }} · 成绩 · {{ site_name }}{% endblock %}
+{% block content %}
+<div class="card">
+  <h2>记录{{ meta.name }}成绩</h2>
+  <form method="post" action="save_score" class="form-grid">
+    <input type="hidden" name="subject" value="{{ code }}">
+    <label>日期 <input type="date" name="date" value="{{ today }}" required></label>
+    <label>类型
+      <select name="kind">
+        <option>周测</option><option>月考</option><option>期中</option>
+        <option>期末</option><option>模拟</option><option>作业</option><option>其他</option>
+      </select>
+    </label>
+    <label>得分 <input type="number" name="score" step="0.5" min="0" required placeholder="如 92"></label>
+    <label>满分 <input type="number" name="full" value="100" min="1"></label>
+    <label class="wide">备注 <input type="text" name="note" placeholder="如：作文失分多"></label>
+    <div class="form-actions"><button class="btn" type="submit">保存</button></div>
+  </form>
+</div>
+
+{% if chart %}
+<div class="card">
+  <h2>得分率趋势（近 {{ pts | length }} 次）</h2>
+  <svg viewBox="0 0 {{ chart.w }} {{ chart.h }}" class="trend-svg" role="img" aria-label="成绩趋势图">
+    <line x1="30" y1="{{ chart.h - 30 }}" x2="{{ chart.w - 10 }}" y2="{{ chart.h - 30 }}" class="axis"/>
+    <line x1="30" y1="10" x2="30" y2="{{ chart.h - 30 }}" class="axis"/>
+    <polyline points="{% for c in chart.coords %}{{ c[0] }},{{ c[1] }} {% endfor %}" class="trend-line"/>
+    {% for c in chart.coords %}<circle cx="{{ c[0] }}" cy="{{ c[1] }}" r="4" class="trend-dot"/>{% endfor %}
+    {% for lbl in chart.labels %}{% if loop.index0 % 2 == 0 or loop.last %}
+    <text x="{{ chart.coords[loop.index0][0] }}" y="{{ chart.h - 10 }}" class="axis-text" text-anchor="middle">{{ lbl }}</text>
+    {% endif %}{% endfor %}
+  </svg>
+</div>
+{% endif %}
+
+<div class="card">
+  <h2>历史成绩</h2>
+  {% if rows %}
+  <table class="table">
+    <tr><th>日期</th><th>类型</th><th>得分</th><th>得分率</th><th>备注</th><th></th></tr>
+    {% for r in rows %}
+    <tr>
+      <td>{{ r.date }}</td><td>{{ r.kind }}</td><td>{{ r.score | int }}/{{ r.full | int }}</td>
+      <td>{{ (r.score * 100 / (r.full or 100)) | round(1) }}%</td>
+      <td>{{ r.note }}</td>
+      <td>
+        <form method="post" action="delete_score" class="inline-form" onsubmit="return confirm('删除这条成绩？')">
+          <input type="hidden" name="id" value="{{ r.id }}">
+          <input type="hidden" name="subject" value="{{ code }}">
+          <button class="link-btn" type="submit">删除</button>
+        </form>
+      </td>
+    </tr>
+    {% endfor %}
+  </table>
+  {% else %}
+  <p class="empty">还没有成绩记录，录入后可以看到趋势图。</p>
+  {% endif %}
+</div>
+{% endblock %}

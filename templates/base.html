@@ -9,29 +9,45 @@
 <body>
 <header class="topbar">
   <div class="wrap bar-in">
-    <a class="brand" href="dashboard">🎓 {{ site_name }}</a>
-    <span class="stage-tag">{{ stage_name }}{{ ' · ' + grade if grade }}</span>
-    {% if exam_days is not none and exam_days > 0 %}<span class="countdown">距考试 {{ exam_days }} 天</span>{% endif %}
+    <a class="brand" href="."><span class="brand-mark">🎓</span>{{ site_name }}</a>
+    <span class="pill">{{ student_name }} · {{ region }}</span>
+    {% if exam_days is not none and exam_days > 0 %}<span class="pill warn">距考试 {{ exam_days }} 天</span>{% endif %}
     <a class="logout" href="logout">退出</a>
   </div>
 </header>
 <nav class="mainnav">
   <div class="wrap nav-in">
     <a href="." class="{{ 'on' if nav == 'home' }}">首页</a>
-    <a href="dashboard" class="{{ 'on' if nav in ('dashboard', 'practice', 'quiz', 'mastery', 'scores', 'plan', 'report') }}">数学中心</a>
-    <a href="mistakes" class="{{ 'on' if nav == 'mistakes' or nav == 'solve' }}">错题本</a>
-    <a href="review" class="{{ 'on' if nav == 'review' }}">复习</a>
+    <a href="ceping" class="{{ 'on' if nav.startswith('ceping') }}">摸底测评</a>
     <a href="thinking" class="{{ 'on' if nav == 'thinking' }}">思维训练</a>
     <a href="draw" class="{{ 'on' if nav == 'draw' }}">几何作图</a>
-    <a href="ceping" class="{{ 'on' if nav.startswith('ceping') }}">摸底测评</a>
     <a href="settings" class="{{ 'on' if nav == 'settings' }}">设置</a>
   </div>
 </nav>
+{% if sb %}
+<div class="subjbar" style="--g1: {{ sb.meta.c1 }}; --g2: {{ sb.meta.c2 }}">
+  <div class="wrap">
+    <div class="subj-head">
+      <span class="subj-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">{{ sb.meta.icon | safe }}</svg></span>
+      <div class="subj-title">
+        <h1>{{ sb.meta.name }}</h1>
+        <p>{{ sb.meta.tag }}</p>
+      </div>
+      <span class="pill glass">{{ '数学旗舰模块' if sb.code == 'math' else 'AI 学科模块' }}</span>
+    </div>
+    <div class="subj-tabs">
+      {% for id, label, url in sb.tabs %}
+      <a href="{{ url }}" class="{{ 'on' if sb.tab == id }}">{{ label }}</a>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+{% endif %}
 <main class="wrap">
 {% block content %}{% endblock %}
 </main>
 <footer class="wrap foot">
-  <p>科学依据：刻意练习 · 间隔重复 · 检索练习 · 错误驱动学习 · 掌握学习 · 交错练习 · 费曼技巧 · 批判性思维</p>
+  <p>掌握学习 · 刻意练习 · 间隔重复 · 错误驱动 · 批判性思维 · 因材施教</p>
 </footer>
 <script src="static/js/app.js"></script>
 </body>

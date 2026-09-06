@@ -1,0 +1,81 @@
+{% extends "base.html" %}
+{% block title %}{{ meta.name }} · AI 报告 · {{ site_name }}{% endblock %}
+{% block content %}
+<div class="card report-hero" style="--g1: {{ meta.c1 }}; --g2: {{ meta.c2 }}">
+  <div>
+    <h2>{{ meta.name }} · 学习报告</h2>
+    <p class="tiny">{{ student_name }} · {{ region }} · {{ now[:16] }}</p>
+  </div>
+  <div class="rh-stats">
+    <div><b>{{ avg if avg is not none else '—' }}</b><span>综合掌握度 · {{ label }}</span></div>
+    <div><b>{{ total }}</b><span>错题归因</span></div>
+    <div><b>{{ scores | length }}</b><span>近期成绩</span></div>
+  </div>
+</div>
+
+<div class="two-col">
+  <div class="card">
+    <h2>① 板块掌握度</h2>
+    {% for b in boards %}
+    {% set lab = mastery_label(b.mastery) %}
+    <div class="mod-row">
+      <span class="mod-name">{{ b.name }}</span>
+      <div class="bar grow"><i class="{{ lab[1] }}" style="width: {{ b.mastery | int }}%"></i></div>
+      <span class="mod-val">{{ b.mastery }}</span>
+    </div>
+    {% endfor %}
+    <p class="tiny">短板优先：{% if boards %}{{ (boards | sort(attribute='mastery') | first).name }}{% endif %} —— 提升性价比最高的板块。</p>
+  </div>
+  <div class="card">
+    <h2>② 错因结构</h2>
+    {% if total %}
+    {% for d in dist %}
+    <div class="mod-row">
+      <span class="mod-name">{{ d.cause }}</span>
+      <div class="bar grow"><i class="{{ 'bad' if d.pct >= 30 else 'warn' }}" style="width: {{ d.pct }}%"></i></div>
+      <span class="mod-val">{{ d.c }} 题</span>
+    </div>
+    {% endfor %}
+    {% else %}
+    <p class="empty">暂无错题归因数据，录错题时写清原因，这里会给出针对性训练方案。</p>
+    {% endif %}
+  </div>
+</div>
+
+{% if rows %}
+<div class="card">
+  <h2>③ 最近错题</h2>
+  <div class="mistake-list">
+    {% for r in rows %}
+    <div class="mistake-item">
+      <div class="m-head">
+        <span class="m-kp">{{ r.kp_name }}</span>
+        <span class="badge">{{ r.cause }}</span>
+        <span class="m-date">{{ r.created[:10] if r.created }}</span>
+      </div>
+      <p class="m-title">{{ r.title }}</p>
+    </div>
+    {% endfor %}
+  </div>
+  <a class="btn ghost sm" href="mistakes?subject={{ code }}&status=all">查看全部错题 →</a>
+</div>
+{% endif %}
+
+<div class="card">
+  <h2>④ AI 深度分析与定制方案</h2>
+  {% if ai_error %}<p class="alert">AI 生成失败：{{ ai_error }}，请稍后重试。</p>{% endif %}
+  {% if latest %}
+  <p class="tiny">生成于 {{ latest.created }}</p>
+  <div class="report-body pre">{{ latest.report }}</div>
+  {% elif latest_assess %}
+  <div class="report-body pre">{{ latest_assess.report }}</div>
+  <p class="tiny">↑ 来自 {{ latest_assess.created[:10] }} 的测评结论</p>
+  {% else %}
+  <p class="empty">还没有 AI 分析。建议先做一次学科摸底，或直接生成报告。</p>
+  {% endif %}
+  <form method="post" action="gen_report" class="ai-gen-form">
+    <button class="btn" type="submit">{{ '重新生成最新报告' if latest else '生成 AI 报告与四周方案' }}</button>
+    <span class="tiny">约需 10~30 秒，基于掌握度 / 错因 / 成绩 / 测评数据</span>
+  </form>
+</div>
+{% endblock %}

@@ -1,14 +1,6 @@
 {% extends "base.html" %}
 {% block title %}{{ meta.name }} · {{ site_name }}{% endblock %}
 {% block content %}
-<div class="hub-head" style="--sc: {{ meta.color }}">
-  <span class="hub-icon">{{ meta.icon }}</span>
-  <div>
-    <h1>{{ meta.name }}</h1>
-    <p class="tiny">{{ meta.desc }}</p>
-  </div>
-</div>
-
 <div class="stat-grid">
   <div class="card stat">
     <div class="stat-num {{ cls }}">{{ avg if avg is not none else '—' }}{% if avg is not none %}<small>/100</small>{% endif %}</div>
@@ -20,15 +12,20 @@
     <div class="stat-name">今日待复习</div>
     <div class="stat-go">{{ '去复习 →' if due_n else '已完成 ✓' }}</div>
   </a>
-  <a class="card stat link" href="ceping?subject={{ code }}">
+  <a class="card stat link" href="subject/{{ code }}/practice">
     <div class="stat-num">AI</div>
-    <div class="stat-name">{{ '重新摸底' if latest else '首次摸底' }}</div>
-    <div class="stat-go">定制学习方案 →</div>
+    <div class="stat-name">专项练习</div>
+    <div class="stat-go">出一组定制题 →</div>
   </a>
   <a class="card stat link" href="mistakes?subject={{ code }}&status=all">
     <div class="stat-num">{{ mistakes_n }}</div>
     <div class="stat-name">累计错题</div>
-    <div class="stat-go">查看错题本 →</div>
+    <div class="stat-go">错题本 →</div>
+  </a>
+  <a class="card stat link" href="subject/{{ code }}/report">
+    <div class="stat-num">报告</div>
+    <div class="stat-name">AI 学习报告</div>
+    <div class="stat-go">{{ '查看最新 →' if latest else '生成定制方案 →' }}</div>
   </a>
 </div>
 
@@ -39,36 +36,36 @@
   <a class="btn ghost sm" href="ceping_result?id={{ latest.id }}">查看完整报告 →</a>
 </div>
 {% else %}
-<div class="card center-card">
-  <h2>还没有做过 {{ meta.name }}摸底</h2>
-  <p class="tiny">AI 会按你的年级与兴趣出一套题，全面探测板块强弱与思维特点，并生成定制学习方案。</p>
-  <form method="post" action="ceping_start">
-    <input type="hidden" name="subject" value="{{ code }}">
-    <input type="hidden" name="kind" value="subject">
-    <button class="btn" type="submit">开始学科摸底（6 题）</button>
-  </form>
+<div class="card cta-card">
+  <div class="cta-in">
+    <div>
+      <h2>还没有做过{{ meta.name }}摸底</h2>
+      <p class="tiny">AI 会按你的年级与兴趣出一套题，探测板块强弱与思维特点，生成定制学习方案。</p>
+    </div>
+    <form method="post" action="ceping_start">
+      <input type="hidden" name="subject" value="{{ code }}">
+      <input type="hidden" name="kind" value="subject">
+      <button class="btn big" type="submit">开始学科摸底</button>
+    </form>
+  </div>
 </div>
 {% endif %}
 
 <div class="two-col">
   <div class="card">
-    <h2>板块掌握度（可自评校准）</h2>
+    <h2>板块掌握度</h2>
     {% for b in boards %}
     {% set lab = mastery_label(b.mastery) %}
-    <div class="kp-row">
-      <span class="kp-name">{{ b.name }}</span>
+    <div class="mod-row">
+      <span class="mod-name">{{ b.name }}</span>
       <div class="bar grow"><i class="{{ lab[1] }}" style="width: {{ b.mastery | int }}%"></i></div>
       <span class="mod-val">{{ b.mastery }} <em>{{ lab[0] }}</em></span>
-      <form method="post" action="self_rate" class="inline-form assess-form">
-        <input type="hidden" name="kp_id" value="{{ b.id }}">
-        <select name="level">
-          <option value="0">完全不会</option><option value="1">勉强记得</option>
-          <option value="2">基本理解</option><option value="3">比较熟练</option><option value="4">非常熟练</option>
-        </select>
-        <button class="btn ghost sm" type="submit">自评</button>
-      </form>
     </div>
     {% endfor %}
+    <div class="btn-row">
+      <a class="btn ghost sm" href="subject/{{ code }}/mastery">自评校准 →</a>
+      <a class="btn ghost sm" href="subject/{{ code }}/scores">成绩记录 →</a>
+    </div>
   </div>
   <div class="card">
     <h2>快速录错题</h2>

@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% block title %}{{ meta.name }} · 掌握度 · {{ site_name }}{% endblock %}
+{% block content %}
+<div class="card">
+  <h2>{{ meta.name }}板块掌握度</h2>
+  <p class="tiny">掌握度由摸底/练习的自评结果实时更新（自适应加权：次数越多越接近真实水平）；也可以直接自评校准。</p>
+  <div class="board-list">
+    {% for b in boards %}
+    {% set lab = mastery_label(b.mastery) %}
+    <div class="board-row">
+      <div class="board-name">
+        <b>{{ b.name }}</b>
+        <span class="tiny">{{ '已练 ' ~ b.attempts ~ ' 次' if b.attempts else '尚未测评' }}</span>
+      </div>
+      <div class="bar grow"><i class="{{ lab[1] }}" style="width: {{ b.mastery | int }}%"></i></div>
+      <span class="mod-val">{{ b.mastery }} <em>{{ lab[0] }}</em></span>
+      <form method="post" action="self_rate" class="inline-form assess-form">
+        <input type="hidden" name="kp_id" value="{{ b.id }}">
+        <select name="level">
+          <option value="0">完全不会</option><option value="1">勉强记得</option>
+          <option value="2">基本理解</option><option value="3">比较熟练</option><option value="4">非常熟练</option>
+        </select>
+        <button class="btn ghost sm" type="submit">自评</button>
+      </form>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+{% endblock %}

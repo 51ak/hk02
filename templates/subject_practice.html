@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% block title %}{{ meta.name }} · 练习 · {{ site_name }}{% endblock %}
+{% block content %}
+<div class="card cta-card">
+  <div class="cta-in">
+    <div>
+      <h2>AI 专项练习</h2>
+      <p class="tiny">AI 按你的年级与画像现场出题（5 题，难度阶梯），融入马术/赛艇/钢琴场景；提交后逐题判定 + 讲评，并自动更新板块掌握度。</p>
+    </div>
+    <form method="post" action="ceping_start">
+      <input type="hidden" name="subject" value="{{ code }}">
+      <input type="hidden" name="kind" value="practice">
+      <button class="btn big" type="submit">开始练习</button>
+    </form>
+  </div>
+</div>
+
+<div class="card">
+  <h2>练习与摸底记录</h2>
+  {% if history %}
+  <table class="table">
+    <tr><th>时间</th><th>类型</th><th>状态</th><th></th></tr>
+    {% for h in history %}
+    <tr>
+      <td>{{ h.created[:16] }}</td>
+      <td>{{ kind_labels.get(h.kind, h.kind) }}</td>
+      <td>{{ '✅ 已完成' if h.done else '⏳ 进行中' }}</td>
+      <td>
+        {% if h.done %}<a class="btn ghost sm" href="ceping_result?id={{ h.id }}">查看讲评</a>
+        {% else %}<a class="btn ghost sm" href="ceping_do?id={{ h.id }}">继续</a>{% endif %}
+      </td>
+    </tr>
+    {% endfor %}
+  </table>
+  {% else %}
+  <p class="empty">还没有练习记录，从上方开始第一组吧。</p>
+  {% endif %}
+</div>
+
+<div class="card">
+  <h2>没有题库的科目怎么练？</h2>
+  <p class="tiny">数学有内置 254 题题库做智能练习；其他科目由 AI 实时命题——每次题目都针对你的年级、当前薄弱板块和兴趣定制，做完即时讲评。错题请录入「<a href="mistakes?subject={{ code }}&status=all">错题本</a>」，AI 会解答并分析。</p>
+</div>
+{% endblock %}
