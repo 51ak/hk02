@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}掌握度 · 黄曼清的MathBoost{% endblock %}
+{% block title %}掌握度 · {{ site_name }}{% endblock %}
 {% block content %}
 <div class="card">
   <h2>知识点掌握度图谱</h2>
@@ -13,7 +13,7 @@
       <span class="kp-name">{{ k.name }}</span>
       <div class="bar grow"><i class="{{ lab[1] }}" style="width: {{ k.mastery | int }}%"></i></div>
       <span class="mod-val">{{ k.mastery }} <em>{{ lab[0] }}</em></span>
-      <form method="post" action="assess" class="inline-form assess-form">
+      <form method="post" action="self_rate" class="inline-form assess-form">
         <input type="hidden" name="kp_id" value="{{ k.id }}">
         <select name="level">
           {% for lv, name in levels.items() %}<option value="{{ lv }}">{{ name }}</option>{% endfor %}

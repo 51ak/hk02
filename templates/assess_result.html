@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% block title %}测评报告 · {{ site_name }}{% endblock %}
+{% block content %}
+<div class="card hero-report">
+  <h2>{{ meta.icon if meta }} {{ meta.name if meta }} · {{ kind_name }} 报告</h2>
+  <p class="tiny">{{ a.created }} · {{ student_name }} · {{ region }}</p>
+  <div class="report-body pre">{{ a.report }}</div>
+</div>
+<div class="card">
+  <h2>逐题回顾</h2>
+  {% for qs in questions %}
+  <div class="q-item">
+    <p class="q-title"><b>{{ loop.index }}.</b> <span class="tag">{{ qs.board }}</span></p>
+    <p class="q-text">{{ qs.text }}</p>
+    <details><summary>我的作答</summary><p class="m-answer {{ 'mine' if answers[loop.index0] else '' }}">{{ answers[loop.index0] or '（未作答）' }}</p></details>
+    <details><summary>参考答案</summary><p class="m-answer">{{ qs.ref }}</p></details>
+  </div>
+  {% endfor %}
+</div>
+<div class="btn-row">
+  <a class="btn" href="ceping">再做一次测评</a>
+  <a class="btn ghost" href="{{ 'dashboard' if a.subject == 'math' else 'subject/' ~ a.subject }}">回学科主页</a>
+</div>
+{% endblock %}

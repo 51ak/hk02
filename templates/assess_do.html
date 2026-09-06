@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% block title %}测评作答 · {{ site_name }}{% endblock %}
+{% block content %}
+<div class="card quiz-card" style="max-width:760px">
+  <h2>{{ meta.icon if meta }} {{ meta.name if meta }} · {{ {'subject': '学科摸底', 'thinking': '思维摸底', 'iq': '认知摸底'}.get(a.kind, a.kind) }}</h2>
+  {% if error %}<p class="alert">{{ error }}</p>{% endif %}
+  <p class="tiny">共 {{ questions | length }} 题，按真实水平作答即可——测评的目的是了解你，不是考倒你。提交后 AI 逐题批改并生成能力画像与定制方案。</p>
+  <form method="post" action="ceping_submit">
+    <input type="hidden" name="id" value="{{ a.id }}">
+    {% for qs in questions %}
+    <div class="q-item">
+      <p class="q-title"><b>{{ loop.index }}.</b> <span class="tag">{{ qs.board }}</span></p>
+      <p class="q-text">{{ qs.text }}</p>
+      <label class="q-ans">你的作答
+        <textarea name="q{{ loop.index }}" rows="3" placeholder="写下你的答案/思路（思维题写推理过程更有利于画像）"></textarea>
+      </label>
+    </div>
+    {% endfor %}
+    <div class="btn-row">
+      <button class="btn" type="submit">提交，生成我的画像</button>
+    </div>
+  </form>
+</div>
+{% endblock %}

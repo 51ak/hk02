@@ -64,12 +64,20 @@ def ai_chat(messages, max_tokens=3000, timeout=120):
         data=json.dumps(payload).encode(),
         headers={"Authorization": "Bearer " + cfg["key"], "Content-Type": "application/json"},
     )
-    try:
-        with urllib.request.urlopen(req, timeout=timeout) as r:
-            data = json.loads(r.read())
-        return data["choices"][0]["message"]["content"], None
-    except Exception as e:
-        return None, str(e)[:120]
+    last_err = None
+    for _ in range(2):
+        try:
+            with urllib.request.urlopen(req, timeout=timeout) as r:
+                data = json.loads(r.read())
+            return data["choices"][0]["message"]["content"], None
+        except urllib.error.HTTPError as e:
+            if 500 <= e.code < 600:
+                last_err = f"HTTP {e.code}"
+                continue
+            return None, f"HTTP {e.code}: {e.reason}"
+        except Exception as e:
+            return None, str(e)[:120]
+    return None, (last_err or "网关无响应") + "（已重试）"
 
 
 def _sections(text):
@@ -312,22 +320,34 @@ def init_db():
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             puzzle_id INTEGER, result REAL, created TEXT
         );
+        CREATE TABLE IF NOT EXISTS assessments (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            subject TEXT NOT NULL, kind TEXT NOT NULL, created TEXT,
+            questions TEXT DEFAULT '[]', answers TEXT DEFAULT '[]',
+            report TEXT DEFAULT '', done INTEGER DEFAULT 0
+        );
         """
     )
     db.commit()
-    cols = [r[1] for r in db.execute("PRAGMA table_info(mistakes)").fetchall()]
-    if "logic_type" not in cols:
+    kcols = [r[1] for r in db.execute("PRAGMA table_info(kp)").fetchall()]
+    if "subject" not in kcols:
+        db.execute("ALTER TABLE kp ADD COLUMN subject TEXT DEFAULT 'math'")
+        db.commit()
+    mcols = [r[1] for r in db.execute("PRAGMA table_info(mistakes)").fetchall()]
+    if "logic_type" not in mcols:
         db.execute("ALTER TABLE mistakes ADD COLUMN logic_type TEXT DEFAULT ''")
-    if "photo" not in cols:
+    if "photo" not in mcols:
         db.execute("ALTER TABLE mistakes ADD COLUMN photo TEXT DEFAULT ''")
-    if "ai_answer" not in cols:
+    if "ai_answer" not in mcols:
         db.execute("ALTER TABLE mistakes ADD COLUMN ai_answer TEXT DEFAULT ''")
-    if "ai_analysis" not in cols:
+    if "ai_analysis" not in mcols:
         db.execute("ALTER TABLE mistakes ADD COLUMN ai_analysis TEXT DEFAULT ''")
-    if "ai_advice" not in cols:
+    if "ai_advice" not in mcols:
         db.execute("ALTER TABLE mistakes ADD COLUMN ai_advice TEXT DEFAULT ''")
-    if "correction" not in cols:
+    if "correction" not in mcols:
         db.execute("ALTER TABLE mistakes ADD COLUMN correction TEXT DEFAULT ''")
+    if "subject" not in mcols:
+        db.execute("ALTER TABLE mistakes ADD COLUMN subject TEXT DEFAULT 'math'")
     db.execute("UPDATE mistakes SET cause='逻辑思维' WHERE cause='思路错误'")
     db.commit()
     rev_row = q1_static(db, "SELECT value FROM config WHERE key='puzzle_rev'")
@@ -345,7 +365,16 @@ def init_db():
     if q1_static(db, "SELECT COUNT(*) c FROM kp")["c"] == 0:
         for stage, module, kps in seed_data.MODULE_TREE:
             for name in kps:
-                db.execute("INSERT INTO kp (stage, module, name) VALUES (?,?,?)", (stage, module, name))
+                db.execute("INSERT INTO kp (stage, module, name, subject) VALUES (?,?,?,'math')", (stage, module, name))
+        db.commit()
+    for code, meta in seed_data.SUBJECTS.items():
+        if code == "math":
+            continue
+        for board in meta["boards"]:
+            exists = q1_static(db, "SELECT id FROM kp WHERE subject=? AND name=?", (code, board))
+            if not exists:
+                db.execute("INSERT INTO kp (stage, module, name, subject) VALUES ('cj',?,?,?)",
+                           (meta["name"], board, code))
         db.commit()
     if q1_static(db, "SELECT COUNT(*) c FROM questions")["c"] == 0:
         rows = db.execute("SELECT id, stage, module, name FROM kp").fetchall()
@@ -357,7 +386,8 @@ def init_db():
             if kp_id:
                 db.execute("INSERT INTO questions (kp_id, diff, text, answer) VALUES (?,?,?,?)", (kp_id, diff, text, answer))
         db.commit()
-    defaults = {"stage": "cj", "exam_date": "", "target": "", "minutes": "40", "grade": "初二"}
+    defaults = {"stage": "cj", "exam_date": "", "target": "", "minutes": "40", "grade": "初二",
+                "name": "黄曼清", "region": "江苏南京", "hobbies": "马术、赛艇、钢琴"}
     for k, v in defaults.items():
         db.execute("INSERT OR IGNORE INTO config (key, value) VALUES (?,?)", (k, v))
     db.commit()
@@ -424,12 +454,19 @@ def sm2_update(m, result):
     run("INSERT INTO reviews_done (mistake_id, result, created) VALUES (?,?,?)", (m["id"], result, now_iso()))
 
 
-def due_mistakes(stage):
+def due_mistakes(subject):
+    if subject == "math":
+        return q(
+            """SELECT m.*, kp.name kp_name, kp.module FROM mistakes m JOIN kp ON m.kp_id=kp.id
+               WHERE m.status='active' AND m.next_review<=? AND kp.subject='math' AND kp.stage=?
+               ORDER BY m.next_review, m.id""",
+            (today_iso(), cfg("stage", "cj")),
+        )
     return q(
         """SELECT m.*, kp.name kp_name, kp.module FROM mistakes m JOIN kp ON m.kp_id=kp.id
-           WHERE m.status='active' AND m.next_review<=? AND kp.stage=?
+           WHERE m.status='active' AND m.next_review<=? AND kp.subject=?
            ORDER BY m.next_review, m.id""",
-        (today_iso(), stage),
+        (today_iso(), subject),
     )
 
 
@@ -519,7 +556,7 @@ def days_to_exam():
 
 def build_suggestions(stage):
     tips = []
-    due = due_mistakes(stage)
+    due = due_mistakes("math")
     if due:
         tips.append(("复习", f"今天有 {len(due)} 道错题到期，先完成复习（间隔重复最忌拖延）。", "review"))
     else:
@@ -563,22 +600,61 @@ def inject_common():
     return {
         "stage": stage,
         "stage_name": seed_data.STAGES.get(stage, stage),
-        "nav": request.path.strip("/").split("/")[0] or "dashboard",
+        "nav": request.path.strip("/").split("/")[0] or "home",
         "exam_days": days_to_exam(),
         "mastery_label": mastery_label,
         "today": today_iso(),
         "now": now_iso(),
+        "site_name": "黄曼清的AI全科学习系统",
+        "student_name": cfg("name", "黄曼清"),
+        "region": cfg("region", "江苏南京"),
+        "hobbies": cfg("hobbies", "马术、赛艇、钢琴"),
+        "subjects": seed_data.SUBJECTS,
     }
 
 
+def profile_text():
+    return (f"学生：{cfg('name', '黄曼清')}，{cfg('region', '江苏南京')}，{cfg('grade', '初二')}"
+            f"（江苏教材体系）；兴趣特长：{cfg('hobbies', '马术、赛艇、钢琴')}；"
+            f"性格特点：自信开朗、气质出众、爱运动爱艺术。")
+
+
 @app.route("/")
+def home():
+    stage = cfg("stage", "cj")
+    cards = []
+    for code, meta in seed_data.SUBJECTS.items():
+        if code == "math":
+            avg = q1("SELECT AVG(mastery) a FROM kp WHERE subject='math' AND stage=?", (stage,))["a"]
+            mistakes_n = q1("SELECT COUNT(*) c FROM mistakes WHERE subject='math'")["c"]
+            latest = q1("SELECT report FROM assessments WHERE subject='math' AND done=1 ORDER BY id DESC LIMIT 1")
+        else:
+            avg = q1("SELECT AVG(mastery) a FROM kp WHERE subject=?", (code,))["a"]
+            mistakes_n = q1("SELECT COUNT(*) c FROM mistakes WHERE subject=?", (code,))["c"]
+            latest = q1("SELECT report FROM assessments WHERE subject=? AND done=1 ORDER BY id DESC LIMIT 1", (code,))
+        due_n = q1("""SELECT COUNT(*) c FROM mistakes m JOIN kp ON m.kp_id=kp.id
+                      WHERE m.status='active' AND m.next_review<=? AND kp.subject=?""", (today_iso(), code))["c"]
+        cards.append({
+            "code": code, "name": meta["name"], "icon": meta["icon"], "color": meta["color"],
+            "desc": meta["desc"], "avg": round(avg, 1) if avg is not None else None,
+            "label": mastery_label(avg)[0] if avg is not None else "未开始",
+            "cls": mastery_label(avg)[1] if avg is not None else "",
+            "mistakes_n": mistakes_n, "due_n": due_n,
+            "assessed": bool(latest and latest["report"]),
+        })
+    due_total = sum(c["due_n"] for c in cards)
+    assess_n = q1("SELECT COUNT(*) c FROM assessments WHERE done=1")["c"]
+    return render_template("home.html", cards=cards, due_total=due_total, assess_n=assess_n)
+
+
 @app.route("/dashboard")
+@app.route("/subject/math")
 def dashboard():
     stage = cfg("stage", "cj")
     overall_m = overall(stage)
     label, cls = mastery_label(overall_m)
-    due = due_mistakes(stage)
-    mistakes_n = q1("SELECT COUNT(*) c FROM mistakes m JOIN kp ON m.kp_id=kp.id WHERE kp.stage=?", (stage,))["c"]
+    due = due_mistakes("math")
+    mistakes_n = q1("SELECT COUNT(*) c FROM mistakes m JOIN kp ON m.kp_id=kp.id WHERE kp.subject='math' AND kp.stage=?", (stage,))["c"]
     practice_n = q1("SELECT COUNT(*) c FROM practice_log")["c"]
     weak = weak_kps(stage, 5)
     scores = list(reversed(q("SELECT * FROM scores ORDER BY date DESC, id DESC LIMIT 8")))
@@ -626,9 +702,15 @@ def logout():
 @app.route("/mistakes")
 def mistakes():
     stage = cfg("stage", "cj")
+    subject = request.args.get("subject", "math")
+    if subject not in seed_data.SUBJECTS:
+        subject = "math"
     status = request.args.get("status", "active")
     cause = request.args.get("cause", "")
-    conds, args = ["kp.stage=?"], [stage]
+    if subject == "math":
+        conds, args = ["kp.stage=?", "kp.subject='math'"], [stage]
+    else:
+        conds, args = ["kp.subject=?"], [subject]
     if status in ("active", "mastered", "all"):
         if status != "all":
             conds.append("m.status=?")
@@ -640,7 +722,10 @@ def mistakes():
     )
     if cause:
         rows = [r for r in rows if r["cause"] == cause]
-    kps = stage_kps(stage)
+    if subject == "math":
+        kps = stage_kps(stage)
+    else:
+        kps = q("SELECT * FROM kp WHERE subject=? ORDER BY id", (subject,))
     return render_template("mistakes.html", rows=rows, kps=kps, causes=CAUSES,
                            logic_types=LOGIC_TYPES, prefill_photo=request.args.get("photo", ""),
                            status=status, cause=cause, stage_name=seed_data.STAGES.get(stage, stage))
@@ -667,6 +752,11 @@ def valid_photo_name(name):
     return ""
 
 
+def kp_subject(kp_id):
+    r = q1("SELECT subject FROM kp WHERE id=?", (kp_id,))
+    return r["subject"] if r else "math"
+
+
 @app.route("/save_mistake", methods=["POST"])
 def save_mistake():
     kp_id = request.form.get("kp_id", type=int)
@@ -682,10 +772,11 @@ def save_mistake():
     if not kp_id or not title:
         abort(400)
     photo = save_photo(request.files.get("photo")) or valid_photo_name(request.form.get("photo_name", ""))
+    subject = kp_subject(kp_id)
     run(
-        """INSERT INTO mistakes (kp_id, title, answer, correction, cause, logic_type, source, diff, photo, created, next_review)
-           VALUES (?,?,?,?,?,?,?,?,?,?,?)""",
-        (kp_id, title, answer, correction, cause, logic_type, source, diff, photo, now_iso(), today_iso()),
+        """INSERT INTO mistakes (kp_id, title, answer, correction, cause, logic_type, source, diff, photo, subject, created, next_review)
+           VALUES (?,?,?,?,?,?,?,?,?,?,?,?)""",
+        (kp_id, title, answer, correction, cause, logic_type, source, diff, photo, subject, now_iso(), today_iso()),
     )
     apply_penalty(kp_id, cause)
     mid = q1("SELECT last_insert_rowid() id")["id"]
@@ -878,11 +969,13 @@ def delete_mistake():
 
 @app.route("/review")
 def review():
-    stage = cfg("stage", "cj")
-    due = due_mistakes(stage)
+    subject = request.args.get("subject", "math")
+    if subject not in seed_data.SUBJECTS:
+        subject = "math"
+    due = due_mistakes(subject)
     item = due[0] if due else None
     done_today = q1("SELECT COUNT(*) c FROM reviews_done WHERE created LIKE ?", (today_iso() + "%",))["c"]
-    return render_template("review.html", item=item, left=len(due), done_today=done_today)
+    return render_template("review.html", item=item, left=len(due), done_today=done_today, subject=subject)
 
 
 @app.route("/review_answer", methods=["POST"])
@@ -893,7 +986,196 @@ def review_answer():
     if m and result in (0, 0.5, 1):
         sm2_update(m, result)
         update_mastery(m["kp_id"], result)
+        return redirect("review?subject=" + kp_subject(m["kp_id"]))
     return redirect("review")
+
+
+@app.route("/subject/<code>")
+def subject_hub(code):
+    if code == "math":
+        return redirect("dashboard")
+    if code not in seed_data.SUBJECTS:
+        abort(404)
+    meta = seed_data.SUBJECTS[code]
+    boards = q("SELECT * FROM kp WHERE subject=? ORDER BY id", (code,))
+    avg = q1("SELECT AVG(mastery) a FROM kp WHERE subject=?", (code,))["a"]
+    mistakes_n = q1("SELECT COUNT(*) c FROM mistakes WHERE subject=?", (code,))["c"]
+    due_n = len(due_mistakes(code))
+    rows = q(
+        """SELECT m.*, kp.name kp_name, kp.module FROM mistakes m JOIN kp ON m.kp_id=kp.id
+           WHERE kp.subject=? ORDER BY m.id DESC LIMIT 10""", (code,))
+    latest = q1("SELECT * FROM assessments WHERE subject=? AND done=1 ORDER BY id DESC LIMIT 1", (code,))
+    return render_template("hub.html", code=code, meta=meta, boards=boards,
+                           avg=round(avg, 1) if avg is not None else None,
+                           label=mastery_label(avg)[0] if avg is not None else "未开始",
+                           cls=mastery_label(avg)[1] if avg is not None else "",
+                           mistakes_n=mistakes_n, due_n=due_n, rows=rows, latest=latest)
+
+
+def gen_questions_ai(subject_code, kind):
+    meta = seed_data.SUBJECTS.get(subject_code, {})
+    if kind == "subject":
+        ask = (
+            f"请为{profile_text()}出一套【{meta.get('name', subject_code)}】学科摸底卷，共 6 题，"
+            f"覆盖板块：{'、'.join(meta.get('boards', []))}，难度由易到难阶梯分布。"
+            "其中至少 1 题情境结合她的兴趣（马术/赛艇/钢琴），让题目亲切有趣。"
+            "题型以简答为主（可含 1 道默写/计算/赏析）。"
+            '只输出JSON数组：[{"text":"题干","ref":"参考答案与考点简析","board":"所属板块"}，…]'
+        )
+    else:
+        ask = (
+            f"请为{profile_text()}设计一套认知能力摸底卷，共 8 题：数字推理 3 题、"
+            "图形规律（用文字精确描述图形序列）3 题、逻辑矩阵/类比 2 题，难度递增。"
+            '只输出JSON数组：[{"text":"题干","ref":"参考答案与解析要点","board":"数字推理/图形规律/逻辑矩阵"}，…]'
+        )
+    content, err = ai_chat([
+        {"role": "system", "content": "你是江苏南京的资深教研员与命题专家，只输出JSON数组，不输出其他内容。"},
+        {"role": "user", "content": ask},
+    ], max_tokens=3500)
+    if err:
+        return None, err
+    try:
+        text = re.sub(r"^```(json)?|```$", "", content.strip(), flags=re.MULTILINE).strip()
+        start, end = text.find("["), text.rfind("]")
+        arr = json.loads(text[start:end + 1])
+
+        def pick(d, *keys):
+            for k in keys:
+                if d.get(k):
+                    return str(d[k])
+            return ""
+        out = []
+        for it in arr:
+            if not isinstance(it, dict):
+                continue
+            stem = pick(it, "text", "stem", "question", "title")
+            if not stem:
+                continue
+            ref = pick(it, "ref", "answer")
+            if it.get("analysis"):
+                ref = (ref + "｜解析：" + str(it["analysis"])).strip("｜")
+            if it.get("options"):
+                ref = "选项：" + "；".join(str(o) for o in it["options"]) + "｜答案：" + ref
+            out.append({"text": stem, "ref": ref, "board": pick(it, "board", "module", "type", "category") or "综合"})
+        if len(out) >= 3:
+            return out, None
+        return None, "生成题目数量不足"
+    except Exception as e:
+        return None, "题目解析失败：" + str(e)[:100]
+
+
+@app.route("/ceping")
+def ceping():
+    subject = request.args.get("subject", "")
+    history = q("SELECT * FROM assessments ORDER BY id DESC LIMIT 8")
+    return render_template("assess.html", subject=subject, kinds=seed_data.ASSESS_KINDS, history=history)
+
+
+@app.route("/ceping_start", methods=["POST"])
+def ceping_start():
+    subject = request.form.get("subject", "math")
+    kind = request.form.get("kind", "subject")
+    if kind not in seed_data.ASSESS_KINDS or subject not in seed_data.SUBJECTS:
+        abort(400)
+    if kind == "thinking":
+        rows = q("SELECT id, category, diff, text, answer FROM puzzles")
+        picked = random.sample(list(rows), min(10, len(rows)))
+        questions = [{"text": r["text"], "ref": r["answer"], "board": r["category"]} for r in picked]
+        err = None
+    else:
+        questions, err = gen_questions_ai(subject, kind)
+    if err:
+        return render_template("assess.html", subject=subject, kinds=seed_data.ASSESS_KINDS,
+                               history=q("SELECT * FROM assessments ORDER BY id DESC LIMIT 8"),
+                               error="出题失败：" + err + "，请稍后重试")
+    run("INSERT INTO assessments (subject, kind, questions, created) VALUES (?,?,?,?)",
+        (subject, kind, json.dumps(questions, ensure_ascii=False), now_iso()))
+    aid = q1("SELECT last_insert_rowid() id")["id"]
+    return redirect("ceping_do?id=" + str(aid))
+
+
+@app.route("/ceping_do")
+def ceping_do():
+    aid = request.args.get("id", type=int)
+    a = q1("SELECT * FROM assessments WHERE id=?", (aid,))
+    if not a:
+        abort(404)
+    questions = json.loads(a["questions"])
+    return render_template("assess_do.html", a=a, questions=questions,
+                           meta=seed_data.SUBJECTS.get(a["subject"], {}))
+
+
+def ai_grade_assessment(a, answers):
+    questions = json.loads(a["questions"])
+    meta = seed_data.SUBJECTS.get(a["subject"], {})
+    kind_name = seed_data.ASSESS_KINDS.get(a["kind"], a["kind"])
+    lines = []
+    for i, (qs, ans) in enumerate(zip(questions, answers), 1):
+        lines.append(f"第{i}题（板块：{qs.get('board', '')}）：{qs['text']}\n参考答案：{qs.get('ref', '')}\n她的作答：{ans or '（未作答）'}")
+    ask = (
+        f"{profile_text()}\n"
+        f"测评类型：{meta.get('name', '')}{kind_name}\n\n以下是逐题信息（题目/参考答案/她的作答）：\n" +
+        "\n\n".join(lines) +
+        "\n\n请严格按以下小节输出，直接以方括号标题开头：\n"
+        "【逐题判定】每题一行：题号 ✓/◐/✗ + 一句话点评（对在哪/错在哪）\n"
+        "【总体画像】用 3~5 个关键词条刻画她在本测评中展现的资质与特点"
+        "（如逻辑推理强、知识面广、图形敏感度高、语言表达优秀等，结合作答证据），"
+        "并给出与她的兴趣特长（马术/赛艇/钢琴）相结合的理解\n"
+        "【优势】列 2~3 条具体优势\n"
+        "【薄弱】列 2~3 条具体短板与可能的成因\n"
+        "【定制方案】给一份 4 周的定制提升方案：按周列出训练重点，"
+        "把学习内容与她的兴趣场景结合（如赛艇配速算速率、马术路线设计几何、钢琴节奏与分数）"
+    )
+    content, err = ai_chat([
+        {"role": "system", "content": "你是因材施教的教育评估专家，评语真诚具体、避免空话，善于发现学生的闪光点。"},
+        {"role": "user", "content": ask},
+    ], max_tokens=3500)
+    if err:
+        return None, err
+    return content.strip(), None
+
+
+@app.route("/ceping_submit", methods=["POST"])
+def ceping_submit():
+    aid = request.form.get("id", type=int)
+    a = q1("SELECT * FROM assessments WHERE id=?", (aid,))
+    if not a or a["done"]:
+        return redirect("ceping")
+    questions = json.loads(a["questions"])
+    answers = [request.form.get(f"q{i}", "").strip() for i in range(1, len(questions) + 1)]
+    report, err = ai_grade_assessment(a, answers)
+    if err:
+        return render_template("assess_do.html", a=a, questions=questions,
+                               meta=seed_data.SUBJECTS.get(a["subject"], {}),
+                               error="AI 批改失败：" + err + "，请重试提交")
+    run("UPDATE assessments SET answers=?, report=?, done=1 WHERE id=?",
+        (json.dumps(answers, ensure_ascii=False), report, aid))
+    if a["kind"] == "subject":
+        boards = {r["name"]: r["id"] for r in q("SELECT id, name FROM kp WHERE subject=?", (a["subject"],))}
+        for qs, ans in zip(questions, answers):
+            kid = boards.get(qs.get("board", ""))
+            if not kid:
+                continue
+            ref = (qs.get("ref") or "").strip()
+            hit = sum(k in ans for k in re.findall(r"[\u4e00-\u9fa5A-Za-z0-9]+", ref)[:8])
+            if ans and hit >= 2:
+                update_mastery(kid, 1 if hit >= 4 else 0.5)
+            else:
+                update_mastery(kid, 0)
+    return redirect("ceping_result?id=" + str(aid))
+
+
+@app.route("/ceping_result")
+def ceping_result():
+    aid = request.args.get("id", type=int)
+    a = q1("SELECT * FROM assessments WHERE id=?", (aid,))
+    if not a or not a["done"]:
+        abort(404)
+    questions = json.loads(a["questions"])
+    answers = json.loads(a["answers"])
+    return render_template("assess_result.html", a=a, questions=questions, answers=answers,
+                           meta=seed_data.SUBJECTS.get(a["subject"], {}),
+                           kind_name=seed_data.ASSESS_KINDS.get(a["kind"], a["kind"]))
 
 
 @app.route("/practice")
@@ -980,8 +1262,8 @@ def mastery():
     return render_template("mastery.html", tree=tree, levels=LEVEL_NAMES)
 
 
-@app.route("/assess", methods=["POST"])
-def assess():
+@app.route("/self_rate", methods=["POST"])
+def self_rate():
     kp_id = request.form.get("kp_id", type=int)
     level = request.form.get("level", type=int)
     if kp_id and level in LEVEL_VALUES:
@@ -1257,6 +1539,9 @@ def settings():
         if action == "profile":
             set_cfg("stage", request.form.get("stage", "cj"))
             set_cfg("grade", request.form.get("grade", "初二"))
+            set_cfg("name", (request.form.get("name", "") or "黄曼清").strip()[:20])
+            set_cfg("region", (request.form.get("region", "") or "江苏南京").strip()[:20])
+            set_cfg("hobbies", (request.form.get("hobbies", "") or "马术、赛艇、钢琴").strip()[:100])
             set_cfg("exam_date", request.form.get("exam_date", ""))
             set_cfg("target", request.form.get("target", "").strip())
             set_cfg("minutes", str(clamp(request.form.get("minutes", 40, type=int) or 40, 10, 300)))
@@ -1275,7 +1560,9 @@ def settings():
                            exam_date=cfg("exam_date"), target=cfg("target"),
                            minutes=cfg("minutes", "40"), stages=seed_data.STAGES,
                            grade=cfg("grade", "初二"),
-                           grades=["初一", "初二", "初三", "高一", "高二", "高三"])
+                           grades=["初一", "初二", "初三", "高一", "高二", "高三"],
+                           name=cfg("name", "黄曼清"), region=cfg("region", "江苏南京"),
+                           hobbies=cfg("hobbies", "马术、赛艇、钢琴"))
 
 
 init_db()

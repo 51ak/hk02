@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+{% block title %}AI 摸底测评 · {{ site_name }}{% endblock %}
+{% block content %}
+<div class="card">
+  <h2>AI 摸底测评 · 全面了解你自己</h2>
+  <p class="tiny">三类测评，帮系统建立你的能力画像（知识板块强弱、思维特点、认知风格），此后所有学习内容都会据此定制，并随使用持续优化。</p>
+  {% if error %}<p class="alert">{{ error }}</p>{% endif %}
+  {% set target = subject if subject in subjects.keys() else 'math' %}
+  {% set smeta = subjects[target] %}
+  <div class="kind-list">
+    {% for k, desc in kinds.items() %}
+    <form method="post" action="ceping_start" class="kind-box">
+      <input type="hidden" name="subject" value="{{ target }}">
+      <input type="hidden" name="kind" value="{{ k }}">
+      <h3>{{ {'subject': '📚', 'thinking': '🧠', 'iq': '💎'}[k] }} {{ desc.split('（')[0] }}</h3>
+      <p class="tiny">{{ desc.split('（')[1] | truncate(30, True, '…') if '（' in desc }}</p>
+      <div class="kind-foot">
+        <span class="kind-subj">{{ smeta.icon }} {{ smeta.name }}</span>
+        <button class="btn sm" type="submit">开始</button>
+      </div>
+    </form>
+    {% endfor %}
+  </div>
+  {% if subject %}
+  <p class="tiny center">当前科目：{{ smeta.name }} · 想测其他科目请从 <a href="dashboard#none">首页</a>进入对应学科</p>
+  {% else %}
+  <p class="tiny center">当前默认科目：数学（{{ smeta.name }}）</p>
+  {% endif %}
+</div>
+
+{% if history %}
+<div class="card">
+  <h2>测评历史</h2>
+  <table class="table">
+    <tr><th>时间</th><th>科目</th><th>类型</th><th>状态</th><th></th></tr>
+    {% for h in history %}
+    <tr>
+      <td>{{ h.created[:16] }}</td>
+      <td>{{ subjects[h.subject].icon if h.subject in subjects }} {{ subjects[h.subject].name if h.subject in subjects else h.subject }}</td>
+      <td>{{ {'subject': '学科摸底', 'thinking': '思维摸底', 'iq': '认知摸底'}[h.kind] if h.kind in ('subject', 'thinking', 'iq') else h.kind }}</td>
+      <td>{{ '✅ 已完成' if h.done else '⏳ 未完成' }}</td>
+      <td>
+        {% if h.done %}<a class="btn ghost sm" href="ceping_result?id={{ h.id }}">报告</a>
+        {% else %}<a class="btn ghost sm" href="ceping_do?id={{ h.id }}">继续</a>{% endif %}
+      </td>
+    </tr>
+    {% endfor %}
+  </table>
+</div>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,127 @@
+{% extends "base.html" %}
+{% block title %}{{ meta.name }} · {{ site_name }}{% endblock %}
+{% block content %}
+<div class="hub-head" style="--sc: {{ meta.color }}">
+  <span class="hub-icon">{{ meta.icon }}</span>
+  <div>
+    <h1>{{ meta.name }}</h1>
+    <p class="tiny">{{ meta.desc }}</p>
+  </div>
+</div>
+
+<div class="stat-grid">
+  <div class="card stat">
+    <div class="stat-num {{ cls }}">{{ avg if avg is not none else '—' }}{% if avg is not none %}<small>/100</small>{% endif %}</div>
+    <div class="stat-name">综合掌握度 · {{ label }}</div>
+    {% if avg is not none %}<div class="bar"><i class="{{ cls }}" style="width: {{ avg | int }}%"></i></div>{% endif %}
+  </div>
+  <a class="card stat link" href="review?subject={{ code }}">
+    <div class="stat-num {{ 'bad' if due_n else 'good' }}">{{ due_n }}</div>
+    <div class="stat-name">今日待复习</div>
+    <div class="stat-go">{{ '去复习 →' if due_n else '已完成 ✓' }}</div>
+  </a>
+  <a class="card stat link" href="ceping?subject={{ code }}">
+    <div class="stat-num">AI</div>
+    <div class="stat-name">{{ '重新摸底' if latest else '首次摸底' }}</div>
+    <div class="stat-go">定制学习方案 →</div>
+  </a>
+  <a class="card stat link" href="mistakes?subject={{ code }}&status=all">
+    <div class="stat-num">{{ mistakes_n }}</div>
+    <div class="stat-name">累计错题</div>
+    <div class="stat-go">查看错题本 →</div>
+  </a>
+</div>
+
+{% if latest %}
+<div class="card">
+  <h2>最近 AI 摸底结论（{{ latest.created[:10] }}）</h2>
+  <div class="report-clip">{{ latest.report[:600] }}{% if latest.report | length > 600 %}…{% endif %}</div>
+  <a class="btn ghost sm" href="ceping_result?id={{ latest.id }}">查看完整报告 →</a>
+</div>
+{% else %}
+<div class="card center-card">
+  <h2>还没有做过 {{ meta.name }}摸底</h2>
+  <p class="tiny">AI 会按你的年级与兴趣出一套题，全面探测板块强弱与思维特点，并生成定制学习方案。</p>
+  <form method="post" action="ceping_start">
+    <input type="hidden" name="subject" value="{{ code }}">
+    <input type="hidden" name="kind" value="subject">
+    <button class="btn" type="submit">开始学科摸底（6 题）</button>
+  </form>
+</div>
+{% endif %}
+
+<div class="two-col">
+  <div class="card">
+    <h2>板块掌握度（可自评校准）</h2>
+    {% for b in boards %}
+    {% set lab = mastery_label(b.mastery) %}
+    <div class="kp-row">
+      <span class="kp-name">{{ b.name }}</span>
+      <div class="bar grow"><i class="{{ lab[1] }}" style="width: {{ b.mastery | int }}%"></i></div>
+      <span class="mod-val">{{ b.mastery }} <em>{{ lab[0] }}</em></span>
+      <form method="post" action="self_rate" class="inline-form assess-form">
+        <input type="hidden" name="kp_id" value="{{ b.id }}">
+        <select name="level">
+          <option value="0">完全不会</option><option value="1">勉强记得</option>
+          <option value="2">基本理解</option><option value="3">比较熟练</option><option value="4">非常熟练</option>
+        </select>
+        <button class="btn ghost sm" type="submit">自评</button>
+      </form>
+    </div>
+    {% endfor %}
+  </div>
+  <div class="card">
+    <h2>快速录错题</h2>
+    <form method="post" action="save_mistake" class="form-grid" enctype="multipart/form-data" id="mistakeForm">
+      <label class="wide seg-print">原题（可拍照自动识别）<span class="req">*</span>
+        <input type="file" name="photo" id="photoInput" accept="image/*" capture="environment">
+        <span class="tiny" id="ocrStatus">选图后自动分区识别：原题 / 作答 / 订正</span>
+        <img id="photoPreview" class="photo-preview" style="display:none" alt="">
+        <input type="hidden" name="photo_name" id="photoName" value="">
+        <textarea name="title" rows="3" id="titleInput" required placeholder="题干"></textarea>
+      </label>
+      <label class="wide seg-mine">我当时的作答
+        <textarea name="answer" rows="2" id="mineInput" placeholder="供 AI 对比分析"></textarea>
+      </label>
+      <label class="wide seg-corr">红笔订正（如有）
+        <textarea name="correction" rows="2" id="corrInput"></textarea>
+      </label>
+      <label>板块
+        <select name="kp_id" required>
+          {% for b in boards %}<option value="{{ b.id }}">{{ b.name }}</option>{% endfor %}
+        </select>
+      </label>
+      <label>错误原因
+        <select name="cause" id="causeSelect">
+          {% for c in ['概念不清', '方法不会', '逻辑思维', '审题失误', '记忆遗漏', '表达不规范', '其他'] %}
+          <option value="{{ c }}">{{ c }}</option>{% endfor %}
+        </select>
+      </label>
+      <div class="form-actions"><button class="btn" type="submit">存入并 AI 解答</button></div>
+    </form>
+  </div>
+</div>
+
+<div class="card">
+  <h2>最近错题</h2>
+  {% if rows %}
+  <div class="mistake-list">
+    {% for r in rows %}
+    <div class="mistake-item">
+      <div class="m-head">
+        <span class="m-kp">{{ r.kp_name }}</span>
+        <span class="badge">{{ r.cause }}</span>
+        <span class="m-date">{{ r.created[:10] if r.created }}</span>
+      </div>
+      <p class="m-title">{{ r.title }}</p>
+      {% if r.ai_answer %}<details><summary>✅ AI 正确答案与解答</summary><p class="m-answer">{{ r.ai_answer }}</p></details>{% endif %}
+      {% if r.ai_analysis %}<details><summary>🔍 AI 错因深度分析</summary><p class="m-answer ai">{{ r.ai_analysis }}</p></details>{% endif %}
+    </div>
+    {% endfor %}
+  </div>
+  <a class="btn ghost sm" href="mistakes?subject={{ code }}&status=all">查看全部 →</a>
+  {% else %}
+  <p class="empty">还没有错题记录。</p>
+  {% endif %}
+</div>
+{% endblock %}
