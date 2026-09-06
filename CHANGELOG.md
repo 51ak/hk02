@@ -1,11 +1,21 @@
 # CHANGELOG.md
 
-## v1.1.1（2026-09-06）网站更名为「黄曼清的MathBoost」
+## v1.1.2（2026-09-06）AGENTS.md 统一 hk03 标准（开发铁律全套）
 
 - 提交哈希：（待回填）
+- 将 AGENTS.md 升级为与 hk03 一致的完整标准：新增「开发前需求澄清 + 一次性调查」「开发后提交保存 + 立即生效 + 固定格式版本汇报」「版本管理增减规则」「Git 工作流（哈希回填/提交前检查/精准 add/禁止 force 改写历史）」「安全红线」五个强制章节。
+- 明确每次修改闭环：提交 → CHANGELOG → 打 tag → push → 请用户 `sudo systemctl restart hk02` 立即生效。
+- 新增 `CLAUDE.md -> AGENTS.md` 软链（与 hk03 一致，Claude Code 自动加载）。
+- 回填 v1.1.1 条目哈希 52186bd。
+- 涉及文件：`AGENTS.md`、`CHANGELOG.md`、`CLAUDE.md`。
+- 回退方式：`git revert <hash>`（纯文档修改，不影响线上站点）。
+
+## v1.1.1（2026-09-06）网站更名为「黄曼清的MathBoost」
+
+- 提交哈希：52186bd
 - 全站名称由「AI 数学成绩提升系统 / MathBoost」统一改为「黄曼清的MathBoost」，覆盖导航品牌、登录页、全部 14 个模板的页面标题。
 - 涉及文件：`templates/*.html`。
-- 回退方式：`git revert <hash>` 后 `sudo systemctl restart hk02`。
+- 回退方式：`git revert 52186bd` 后 `sudo systemctl restart hk02`。
 
 ## v1.1.0（2026-09-06）逻辑思维诊断 + 拍照录题（OCR）
 
