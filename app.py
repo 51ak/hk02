@@ -701,6 +701,7 @@ def dashboard():
     mistakes_n = q1("SELECT COUNT(*) c FROM mistakes m JOIN kp ON m.kp_id=kp.id WHERE kp.subject='math' AND kp.stage=?", (stage,))["c"]
     practice_n = q1("SELECT COUNT(*) c FROM practice_log")["c"]
     weak = weak_kps(stage, 5)
+    think_done = q1("SELECT COUNT(*) c FROM thinking_log WHERE created LIKE ?", (today_iso() + "%",))["c"] > 0
     scores = list(reversed(q("SELECT * FROM scores WHERE subject='math' ORDER BY date DESC, id DESC LIMIT 8")))
     mods = module_stats(stage)
     tips = build_suggestions(stage)
@@ -713,6 +714,7 @@ def dashboard():
         overall_m=overall_m, label=label, cls=cls,
         due_n=len(due), mistakes_n=mistakes_n, practice_n=practice_n,
         weak=weak, mods=mods, tips=tips, scores=scores, trend=trend,
+        think_done=think_done,
     )
 
 

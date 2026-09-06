@@ -30,9 +30,14 @@
     <div class="stat-name">累计练习题次</div>
     <div class="stat-go">智能练习 →</div>
   </a>
+  <a class="card stat link" href="thinking">
+    <div class="stat-num">🧠</div>
+    <div class="stat-name">思维训练（门萨式）</div>
+    <div class="stat-go">{{ '今日未打卡，去做一题 →' if not think_done else '今日已训练 ✓' }}</div>
+  </a>
   <a class="card stat link" href="report">
     <div class="stat-num">AI</div>
-    <div class="stat-name">数学诊断报告</div>
+    <div class="stat-name">诊断报告 · 含逻辑缺陷处方</div>
     <div class="stat-go">查看 →</div>
   </a>
 </div>
