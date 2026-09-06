@@ -407,6 +407,23 @@ label.chk em { font-style: normal; color: var(--muted); font-size: 11px; }
 .figure-box { height: 400px; border: 1.5px solid var(--line); border-radius: 12px; background: #fff; overflow: hidden; }
 .ai-block.fig { background: #fbfaff; border: 1px solid var(--line); }
 
+.hero-slim { padding: 24px 26px 22px; }
+.hero-slim h1 { font-size: 23px; margin-bottom: 10px; }
+.today-strip { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 22px; }
+.tchip { display: flex; align-items: center; gap: 7px; background: var(--card); border: 1.5px solid var(--line); border-radius: 999px; padding: 8px 18px; text-decoration: none; color: var(--ink); font-size: 13.5px; box-shadow: var(--shadow); transition: transform .13s, box-shadow .13s; }
+.tchip:hover { transform: translateY(-2px); box-shadow: var(--shadow-lg); }
+.tchip b { font-size: 17px; color: var(--brand-deep); }
+.tchip i { font-style: normal; color: var(--brand); font-size: 12.5px; }
+.tchip.hot { border-color: #f3c1c1; background: #fff7f7; }
+.tchip.hot b { color: var(--bad); }
+.tchip.done i { color: var(--good); }
+.quick-row { display: flex; flex-wrap: wrap; gap: 9px; margin-bottom: 20px; }
+.quick-row a { background: var(--card); border: 1.5px solid var(--line); border-radius: 999px; padding: 7px 16px; text-decoration: none; color: var(--brand-deep); font-size: 13.5px; box-shadow: var(--shadow); }
+.quick-row a:hover { border-color: var(--brand); background: var(--brand-soft); }
+.foot-links { margin-top: 4px; }
+.foot-links a { color: #b3a9d6; text-decoration: none; }
+.foot-links a:hover { color: var(--brand); }
+
 @media (max-width: 700px) {
   .two-col { grid-template-columns: 1fr; }
   .jxgbox { height: 340px; }

@@ -15,17 +15,18 @@
     <a class="logout" href="{{ R }}logout">退出</a>
   </div>
 </header>
+{% if not request.args.get('k') %}
 <nav class="mainnav">
   <div class="wrap nav-in">
     <a href="{{ R }}" class="{{ 'on' if nav == 'home' }}">首页</a>
+    <a href="{{ R }}dashboard" class="{{ 'on' if nav in ('dashboard', 'practice', 'quiz', 'mastery', 'scores', 'plan', 'report', 'mistakes', 'solve', 'review', 'draw') }}">数学</a>
     <a href="{{ R }}ceping" class="{{ 'on' if nav.startswith('ceping') }}">摸底测评</a>
     <a href="{{ R }}thinking" class="{{ 'on' if nav == 'thinking' }}">思维训练</a>
     <a href="{{ R }}toolbox" class="{{ 'on' if nav == 'toolbox' }}">工具箱</a>
-    <a href="{{ R }}draw" class="{{ 'on' if nav == 'draw' }}">几何作图</a>
-    <a href="{{ R }}weekly" class="{{ 'on' if nav == 'weekly' }}">家长周报</a>
     <a href="{{ R }}settings" class="{{ 'on' if nav == 'settings' }}">设置</a>
   </div>
 </nav>
+{% endif %}
 {% if sb %}
 <div class="subjbar" style="--g1: {{ sb.meta.c1 }}; --g2: {{ sb.meta.c2 }}">
   <div class="wrap">
@@ -50,6 +51,7 @@
 </main>
 <footer class="wrap foot">
   <p>掌握学习 · 刻意练习 · 间隔重复 · 错误驱动 · 批判性思维 · 因材施教</p>
+  <p class="foot-links"><a href="{{ R }}weekly">家长周报</a> · <a href="{{ R }}draw">几何作图</a> · <a href="{{ R }}ceping">摸底测评</a></p>
 </footer>
 <script>window.APP_ROOT = "{{ R }}";</script>
 <script src="{{ R }}static/js/app.js?v=2.4.0"></script>

@@ -800,7 +800,7 @@ def url_for_login():
 
 _TAB_BY_PATH = {"dashboard": "hub", "practice": "practice", "quiz": "practice", "mistakes": "mistakes",
                 "solve": "mistakes", "review": "review", "mastery": "mastery", "scores": "scores",
-                "plan": "plan", "report": "report"}
+                "plan": "plan", "report": "report", "draw": "draw"}
 
 
 def subject_shell():
@@ -826,6 +826,7 @@ def subject_shell():
             ("review", "复习", root + "review?subject=math"),
             ("mastery", "掌握度", root + "mastery"),
             ("skills", "答题技巧", root + "subject/math/skills"),
+            ("draw", "作图", root + "draw"),
             ("scores", "成绩", root + "scores"),
             ("plan", "计划", root + "plan"),
             ("report", "报告", root + "report"),
@@ -936,7 +937,10 @@ def home():
         })
     due_total = sum(c["due_n"] for c in cards)
     assess_n = q1("SELECT COUNT(*) c FROM assessments WHERE done=1")["c"]
-    return render_template("home.html", cards=cards, due_total=due_total, assess_n=assess_n)
+    practice_today = q1("SELECT COUNT(*) c FROM practice_log WHERE created LIKE ?", (today_iso() + "%",))["c"] > 0
+    thinking_today = q1("SELECT COUNT(*) c FROM thinking_log WHERE created LIKE ?", (today_iso() + "%",))["c"] > 0
+    return render_template("home.html", cards=cards, due_total=due_total, assess_n=assess_n,
+                           practice_today=practice_today, thinking_today=thinking_today)
 
 
 @app.route("/dashboard")
@@ -978,11 +982,13 @@ def login():
             else:
                 set_cfg("pw", generate_password_hash(pw))
                 session["ok"] = True
-                return redirect("dashboard")
+                root = (request.script_root + "/") if request.script_root else "/"
+                return redirect(root)
         else:
             if check_password_hash(cfg("pw"), pw):
                 session["ok"] = True
-                return redirect("dashboard")
+                root = (request.script_root + "/") if request.script_root else "/"
+                return redirect(root)
             error = "密码不正确"
     return render_template("login.html", pw_set=pw_set, error=error)
 

@@ -1,46 +1,34 @@
 {% extends "base.html" %}
 {% block title %}{{ site_name }}{% endblock %}
 {% block content %}
-<section class="hero">
+<section class="hero hero-slim">
   <div class="hero-glow g1"></div><div class="hero-glow g2"></div><div class="hero-glow g3"></div>
   <div class="hero-in">
-    <p class="hero-date">{{ today | replace('-', ' / ') }} · {{ stage_name }}{% if grade %} · {{ grade }}{% endif %}</p>
     <h1>{{ student_name }}，今天也要闪闪发光</h1>
-    <p class="hero-sub">马术练平衡，赛艇练节奏，钢琴练专注 —— 学习也一样，方法与坚持最美。</p>
     <div class="hero-chips">
-      <span class="hchip">🏇 {{ hobbies.split('、')[0] if hobbies else '马术' }}</span>
-      <span class="hchip">🚣 {{ hobbies.split('、')[1] if hobbies and hobbies.count('、') >= 1 else '赛艇' }}</span>
-      <span class="hchip">🎹 {{ hobbies.split('、')[2] if hobbies and hobbies.count('、') >= 2 else '钢琴' }}</span>
+      <span class="hchip">{{ stage_name }}{% if grade %} · {{ grade }}{% endif %}</span>
+      <span class="hchip">🏇 🚣 🎹</span>
       {% if exam_days is not none and exam_days > 0 %}<span class="hchip hot">⏳ 距考试 {{ exam_days }} 天</span>{% endif %}
     </div>
   </div>
   <div class="hero-rings"><i></i><i></i><i></i></div>
 </section>
 
-<div class="home-stats">
-  <a class="hstat {{ 'hot' if due_total else '' }}" href="{{ R }}review">
-    <b>{{ due_total }}</b><span>今日待复习</span><i>{{ '立即去复习' if due_total else '今日已清零 ✓' }}</i>
+<div class="today-strip">
+  <a class="tchip {{ 'hot' if due_total else 'done' }}" href="{{ R }}review">
+    <b>{{ due_total }}</b> 道错题待复习 <i>{{ '立即去 →' if due_total else '今日已清零 ✓' }}</i>
   </a>
-  <a class="hstat" href="{{ R }}ceping">
-    <b>{{ assess_n }}</b><span>AI 摸底测评</span><i>{{ '继续完善画像' if assess_n < 3 else '画像已建立' }}</i>
+  <a class="tchip {{ 'done' if practice_today else '' }}" href="{{ R }}practice">
+    🎯 智能练习 <i>{{ '今日已练 ✓' if practice_today else '去练一组 →' }}</i>
   </a>
-  <a class="hstat" href="{{ R }}dashboard">
-    <b>数学</b><span>旗舰模块</span><i>掌握度引擎 · 智能练习</i>
-  </a>
-  <a class="hstat" href="{{ R }}thinking">
-    <b>思维</b><span>每日一题</span><i>门萨式训练打卡</i>
-  </a>
-  <a class="hstat" href="{{ R }}toolbox">
-    <b>工具箱</b><span>公式·古诗·单词</span><i>卡片自测速记</i>
-  </a>
-  <a class="hstat" href="{{ R }}weekly">
-    <b>周报</b><span>家长可见</span><i>本周学习总结</i>
+  <a class="tchip {{ 'done' if thinking_today else '' }}" href="{{ R }}thinking">
+    🧠 思维训练 <i>{{ '今日已练 ✓' if thinking_today else '每日一题 →' }}</i>
   </a>
 </div>
 
 <div class="sec-head">
   <h2>我的学科</h2>
-  <p>点击进入学科空间 · 每科都有练习 / 错题 / 复习 / 成绩 / 报告</p>
+  <p>每科都有 练习 / 错题本 / 复习 / 掌握度 / 答题技巧 / 成绩 / 报告</p>
 </div>
 <div class="subject-grid">
   {% for c in cards %}
@@ -64,13 +52,20 @@
   {% endfor %}
 </div>
 
+<div class="quick-row">
+  <a href="{{ R }}ceping">🧪 摸底测评{% if assess_n %}（已测 {{ assess_n }} 次）{% endif %}</a>
+  <a href="{{ R }}toolbox">🧰 知识工具箱</a>
+  <a href="{{ R }}draw">📐 几何作图</a>
+  <a href="{{ R }}weekly">📮 家长周报</a>
+  <a href="{{ R }}settings">⚙️ 设置</a>
+</div>
+
 <div class="card tip-card">
   <h2>用好这套系统</h2>
   <ul class="tips">
-    <li><span class="tag">第一次</span>每科做一次「<a href="{{ R }}ceping">AI 摸底</a>」，系统为你建立能力画像，内容随使用越来越懂你</li>
-    <li><span class="tag">日常</span>错题拍照录入，AI 解答 + 错因深度分析 + 思维训练建议一步到位</li>
+    <li><span class="tag">第一次</span>每科做一次「AI 摸底」，系统建立能力画像，内容随使用越来越懂你</li>
+    <li><span class="tag">日常</span>错题拍照录入，AI 解答 + 错因分析 + 思维训练一步到位</li>
     <li><span class="tag">复习</span>每天清空到期复习，间隔重复把记忆钉在遗忘临界点上</li>
-    <li><span class="tag">报告</span>每科随时生成 AI 报告：优势、短板与四周定制方案</li>
   </ul>
 </div>
 {% endblock %}
