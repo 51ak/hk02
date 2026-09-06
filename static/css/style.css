@@ -217,6 +217,19 @@ label.chk em { font-style: normal; color: var(--muted); font-size: 11px; }
 .cat-box .tiny { margin: 2px 0 8px; }
 .puzz-explain { background: #f5f3ff; border-radius: 8px; padding: 10px 12px; font-size: 13.5px; margin: 6px 0 2px; }
 
+.ai-result { margin-top: 14px; }
+.ai-block { border-radius: 10px; padding: 12px 16px; margin-bottom: 10px; }
+.ai-block h3 { margin: 0 0 6px; font-size: 14.5px; }
+.ai-block.ans { background: #f0fdf4; border: 1px solid #bbf7d0; }
+.ai-block.analysis { background: #fdf4ff; border: 1px solid #f5d0fe; }
+.ai-block .pre, p.pre { white-space: pre-wrap; font-size: 14px; margin: 0; line-height: 1.8; }
+.ai-pending { background: var(--brand-2); border-radius: 10px; padding: 18px; text-align: center; margin-top: 14px; }
+.ai-loading { font-size: 14.5px; color: var(--brand); }
+.spinner { display: inline-block; width: 14px; height: 14px; border: 2.5px solid #c7d2fe; border-top-color: var(--brand); border-radius: 50%; margin-right: 8px; vertical-align: -2px; animation: spin 0.9s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.m-answer.ai { background: #fdf4ff; }
+.m-answer.mine { background: #fff7ed; }
+
 @media (max-width: 600px) {
   .mod-name { width: 96px; font-size: 12.5px; }
   .kp-name { width: 108px; font-size: 12.5px; }

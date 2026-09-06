@@ -1,7 +1,10 @@
 import os
+import json
 import random
+import re
 import secrets
 import sqlite3
+import urllib.request
 from datetime import date, datetime, timedelta
 
 from flask import Flask, abort, g, jsonify, redirect, render_template, request, send_from_directory, session
@@ -13,6 +16,7 @@ import seed_data
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DB_PATH = os.path.join(BASE_DIR, "data", "math.db")
 KEY_PATH = os.path.join(BASE_DIR, "data", "secret_key")
+AI_CFG_PATH = os.path.join(BASE_DIR, "data", "ai.json")
 PHOTO_DIR = os.path.join(BASE_DIR, "data", "photos")
 PHOTO_EXTS = {".jpg", ".jpeg", ".png", ".webp", ".gif", ".bmp"}
 
@@ -36,6 +40,70 @@ LOGIC_TRAIN = seed_data.LOGIC_TRAIN
 PUZZLE_CATS = ["逻辑演绎", "数字规律", "图形空间", "横向思维", "策略决策", "论证分析"]
 LEVEL_VALUES = {0: 10, 1: 30, 2: 50, 3: 75, 4: 90}
 LEVEL_NAMES = {0: "完全不会", 1: "勉强记得", 2: "基本理解", 3: "比较熟练", 4: "非常熟练"}
+
+
+def load_ai_cfg():
+    try:
+        with open(AI_CFG_PATH) as f:
+            cfg = json.load(f)
+        if cfg.get("base") and cfg.get("key") and cfg.get("model"):
+            return cfg
+    except Exception:
+        pass
+    return None
+
+
+def ai_chat(messages, max_tokens=1600, timeout=90):
+    cfg = load_ai_cfg()
+    if not cfg:
+        return None, "AI 网关未配置（缺少 data/ai.json）"
+    payload = {"model": cfg["model"], "messages": messages, "temperature": 0.2, "max_tokens": max_tokens}
+    req = urllib.request.Request(
+        cfg["base"].rstrip("/") + "/chat/completions",
+        data=json.dumps(payload).encode(),
+        headers={"Authorization": "Bearer " + cfg["key"], "Content-Type": "application/json"},
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=timeout) as r:
+            data = json.loads(r.read())
+        return data["choices"][0]["message"]["content"], None
+    except Exception as e:
+        return None, str(e)[:120]
+
+
+def ai_solve_mistake(m, kp_name, stage_name):
+    my_answer = (m["answer"] or "").strip() or "未提供"
+    logic = ""
+    if m["logic_type"]:
+        logic = f"；逻辑缺陷定位：{m['logic_type']}（{LOGIC_TYPES.get(m['logic_type'], '')}）"
+    user = (
+        f"【学段】{stage_name}\n【题目】{m['title']}\n"
+        f"【我当时写的答案/做法】{my_answer}\n"
+        f"【我的错误原因自评】{m['cause']}{logic}\n\n"
+        "请完成两件事，只输出一个 JSON 对象（不要 markdown 代码块，不要多余文字）：\n"
+        '{"answer": "最终正确答案（简洁，含关键结果）",\n'
+        ' "steps": "详细解答过程，分步编号，每步一行，含关键依据",\n'
+        ' "analysis": "针对我的错误原因的深度分析：我可能错在哪一步/哪个概念，为什么会错；'
+        '若涉及逻辑缺陷请从批判性思维角度指出思维漏洞；最后给 2~3 条针对性改进建议"}'
+    )
+    content, err = ai_chat([
+        {"role": "system", "content": "你是一名经验丰富的中学数学教师，精通中国大陆初中与高中数学课程，讲解条理清晰、适合学生自学。几何题若无图形信息，先说明需补充的条件再按常见情形解答。"},
+        {"role": "user", "content": user},
+    ])
+    if err:
+        return None, err
+    try:
+        text = content.strip()
+        text = re.sub(r"^```(json)?|```$", "", text.strip(), flags=re.MULTILINE).strip()
+        start, end = text.find("{"), text.rfind("}")
+        obj = json.loads(text[start:end + 1])
+        return {
+            "answer": str(obj.get("answer", "")).strip(),
+            "steps": str(obj.get("steps", "")).strip(),
+            "analysis": str(obj.get("analysis", "")).strip(),
+        }, None
+    except Exception:
+        return {"answer": content.strip()[:2000], "steps": "", "analysis": ""}, None
 
 
 def load_ocr():
@@ -174,6 +242,10 @@ def init_db():
         db.execute("ALTER TABLE mistakes ADD COLUMN logic_type TEXT DEFAULT ''")
     if "photo" not in cols:
         db.execute("ALTER TABLE mistakes ADD COLUMN photo TEXT DEFAULT ''")
+    if "ai_answer" not in cols:
+        db.execute("ALTER TABLE mistakes ADD COLUMN ai_answer TEXT DEFAULT ''")
+    if "ai_analysis" not in cols:
+        db.execute("ALTER TABLE mistakes ADD COLUMN ai_analysis TEXT DEFAULT ''")
     db.execute("UPDATE mistakes SET cause='逻辑思维' WHERE cause='思路错误'")
     db.commit()
     if q1_static(db, "SELECT COUNT(*) c FROM puzzles")["c"] == 0:
@@ -517,7 +589,32 @@ def save_mistake():
         (kp_id, title, answer, cause, logic_type, source, diff, photo, now_iso(), today_iso()),
     )
     apply_penalty(kp_id, cause)
-    return redirect("mistakes")
+    mid = q1("SELECT last_insert_rowid() id")["id"]
+    return redirect("solve?id=" + str(mid))
+
+
+@app.route("/solve")
+def solve():
+    mid = request.args.get("id", type=int)
+    m = q1("""SELECT m.*, kp.name kp_name, kp.module, kp.stage FROM mistakes m JOIN kp ON m.kp_id=kp.id WHERE m.id=?""", (mid,))
+    if not m:
+        abort(404)
+    return render_template("solve.html", m=m, stage_name=seed_data.STAGES.get(m["stage"], m["stage"]))
+
+
+@app.route("/ai_solve", methods=["POST"])
+def ai_solve():
+    mid = request.form.get("id", type=int)
+    m = q1("""SELECT m.*, kp.name kp_name, kp.module, kp.stage FROM mistakes m JOIN kp ON m.kp_id=kp.id WHERE m.id=?""", (mid,))
+    if not m:
+        return jsonify({"ok": False, "msg": "错题不存在"}), 404
+    stage_name = seed_data.STAGES.get(m["stage"], m["stage"])
+    result, err = ai_solve_mistake(m, m["kp_name"], stage_name)
+    if err:
+        return jsonify({"ok": False, "msg": "AI 解答失败：" + err + "，可稍后重试"})
+    run("UPDATE mistakes SET ai_answer=?, ai_analysis=? WHERE id=?",
+        (result["answer"] + ("\n\n【解答过程】\n" + result["steps"] if result["steps"] else ""), result["analysis"], mid))
+    return jsonify({"ok": True, **result})
 
 
 @app.route("/ocr", methods=["POST"])

@@ -100,6 +100,7 @@ setup-root.sh     # 一键上线脚本（root 执行，幂等）
 - **选题引擎**：弱项优先 + 模块交错（interleaving）。
 - **逻辑思维诊断**：错因=逻辑思维时定位 `mistakes.logic_type`（10 类），报告页给出缺陷画像与思维训练处方。
 - **拍照录题**：`mistakes.photo` 存原图文件名（`data/photos/`），RapidOCR（rapidocr-onnxruntime）离线识别手写，懒加载每 worker 一次。
+- **AI 解答**：录题后 `/solve` 页调用 OpenAI 兼容网关（凭据在 `data/ai.json`：base/key/model，严禁入库），生成正确答案+分步过程+错因分析，存 `mistakes.ai_answer`/`ai_analysis`；网关不可用时自动降级为手动模式。
 
 ## 操作规范
 

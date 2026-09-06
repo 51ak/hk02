@@ -1,0 +1,92 @@
+{% extends "base.html" %}
+{% block title %}AI 解答 · 黄曼清的MathBoost{% endblock %}
+{% block content %}
+<div class="card quiz-card">
+  <h2>AI 解答与错因分析</h2>
+  <div class="m-head">
+    <span class="m-kp">{{ m.module }} · {{ m.kp_name }}</span>
+    <span class="badge">{{ m.cause }}</span>
+    {% if m.logic_type %}<span class="logic-tag">逻辑缺陷：{{ m.logic_type }}</span>{% endif %}
+  </div>
+  <p class="quiz-title">{{ m.title }}</p>
+  {% if m.photo %}<a class="photo-link" href="photo/{{ m.photo }}" target="_blank">🖼 查看题目原图</a>{% endif %}
+  {% if m.answer %}<p class="tiny">我当时写的答案：{{ m.answer }}</p>{% endif %}
+
+  {% if m.ai_answer %}
+  <div class="ai-result">
+    <div class="ai-block ans">
+      <h3>✅ 正确答案与解答</h3>
+      <p class="pre">{{ m.ai_answer }}</p>
+    </div>
+    <div class="ai-block analysis">
+      <h3>🔍 错因深度分析</h3>
+      <p class="pre">{{ m.ai_analysis or '（未生成）' }}</p>
+    </div>
+    <p class="tiny">已存入错题记录，复习时会再次展示。</p>
+  </div>
+  {% else %}
+  <div id="aiPending" class="ai-pending">
+    <p class="ai-loading"><span class="spinner"></span>AI 老师正在解答并分析你的错因，约需 10~30 秒…</p>
+    <p class="tiny">解答内容：正确答案 + 分步过程 + 针对性错因分析（含批判性思维视角）。</p>
+  </div>
+  <div id="aiError" style="display:none" class="ai-result">
+    <p class="alert" id="aiErrorMsg"></p>
+    <button class="btn" id="aiRetry">重试</button>
+  </div>
+  <div id="aiResult" style="display:none" class="ai-result">
+    <div class="ai-block ans">
+      <h3>✅ 正确答案与解答</h3>
+      <p class="pre" id="aiAns"></p>
+    </div>
+    <div class="ai-block analysis">
+      <h3>🔍 错因深度分析</h3>
+      <p class="pre" id="aiAnalysis"></p>
+    </div>
+    <p class="tiny">已自动存入错题记录，复习时会再次展示。</p>
+  </div>
+  {% endif %}
+  <div class="btn-row" style="margin-top:14px">
+    <a class="btn ghost" href="mistakes">回错题本</a>
+    <form method="post" action="practice_start" class="inline-form">
+      <input type="hidden" name="mode" value="weak">
+      <input type="hidden" name="count" value="5">
+      <button class="btn" type="submit">针对该弱点再练 5 题</button>
+    </form>
+  </div>
+</div>
+<script>
+(function () {
+  var pending = document.getElementById('aiPending');
+  var errBox = document.getElementById('aiError');
+  var result = document.getElementById('aiResult');
+  if (!pending) return;
+  function run() {
+    errBox.style.display = 'none';
+    pending.style.display = '';
+    var fd = new FormData();
+    fd.append('id', '{{ m.id }}');
+    fetch('ai_solve', { method: 'POST', body: fd })
+      .then(function (r) { return r.json(); })
+      .then(function (d) {
+        pending.style.display = 'none';
+        if (d.ok) {
+          document.getElementById('aiAns').textContent = d.steps ? (d.answer + '\n\n【解答过程】\n' + d.steps) : d.answer;
+          document.getElementById('aiAnalysis').textContent = d.analysis || '（未生成）';
+          result.style.display = '';
+        } else {
+          document.getElementById('aiErrorMsg').textContent = d.msg || 'AI 解答失败';
+          errBox.style.display = '';
+        }
+      })
+      .catch(function () {
+        pending.style.display = 'none';
+        document.getElementById('aiErrorMsg').textContent = '网络异常，请重试';
+        errBox.style.display = '';
+      });
+  }
+  var retry = document.getElementById('aiRetry');
+  if (retry) retry.addEventListener('click', run);
+  run();
+})();
+</script>
+{% endblock %}

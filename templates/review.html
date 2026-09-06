@@ -13,7 +13,11 @@
   {% if item.logic_type %}<p class="logic-tag">逻辑缺陷：{{ item.logic_type }}</p>{% endif %}
   <details class="review-answer">
     <summary>先独立回想，再点开对照答案</summary>
-    <p class="m-answer">{{ item.answer or '（未填写答案，凭记忆和笔记核对）' }}</p>
+    {% if item.ai_answer %}
+    <p class="m-answer"><b>✅ AI 解答：</b>{{ item.ai_answer }}</p>
+    {% endif %}
+    <p class="m-answer">{{ item.answer or '（未填写，凭记忆和笔记核对）' }}</p>
+    {% if item.ai_analysis %}<p class="m-answer ai"><b>🔍 错因分析：</b>{{ item.ai_analysis }}</p>{% endif %}
   </details>
   <p class="tiny center">诚实自评效果最好——检索练习的核心就是“先努力回想”。</p>
   <div class="grade-btns">

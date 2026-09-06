@@ -12,8 +12,8 @@
     <label class="wide">题目内容 <span class="req">*</span>
       <textarea name="title" rows="3" id="titleInput" required placeholder="拍照自动识别，或手动抄题干（可简写关键条件）"></textarea>
     </label>
-    <label class="wide">正确答案
-      <textarea name="answer" rows="2" placeholder="正确解法或答案要点（复习时对照用）"></textarea>
+    <label class="wide">我当时写的答案 / 做法（可选，供 AI 对比分析）
+      <textarea name="answer" rows="2" placeholder="留空也可——保存后 AI 会自动给出正确答案与分步解答"></textarea>
     </label>
     <label>知识点 <span class="req">*</span>
       <select name="kp_id" required>
@@ -76,7 +76,10 @@
       <p class="m-title">{{ r.title }}</p>
       {% if r.photo %}<a class="photo-link" href="photo/{{ r.photo }}" target="_blank">🖼 查看题目原图（含几何图形）</a>{% endif %}
       {% if r.logic_type %}<p class="logic-tag">逻辑缺陷：{{ r.logic_type }} — {{ logic_types.get(r.logic_type, '') }}</p>{% endif %}
-      {% if r.answer %}<details><summary>查看正确答案</summary><p class="m-answer">{{ r.answer }}</p></details>{% endif %}
+      {% if r.ai_answer %}<details><summary>✅ AI 正确答案与解答</summary><p class="m-answer">{{ r.ai_answer }}</p></details>{% endif %}
+      {% if r.ai_analysis %}<details><summary>🔍 AI 错因分析</summary><p class="m-answer ai">{{ r.ai_analysis }}</p></details>{% endif %}
+      {% if r.answer %}<details><summary>我当时写的答案</summary><p class="m-answer mine">{{ r.answer }}</p></details>{% endif %}
+      {% if not r.ai_answer %}<a class="btn ghost sm" href="solve?id={{ r.id }}">生成 AI 解答与分析</a>{% endif %}
       <div class="m-meta">
         <span>难度 {{ '★' * r.diff }}</span>
         {% if r.source %}<span>出处：{{ r.source }}</span>{% endif %}

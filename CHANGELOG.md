@@ -1,8 +1,22 @@
 # CHANGELOG.md
 
-## v1.1.4（2026-09-06）AGENTS.md 记录免 root 热重载方法
+## v1.2.0（2026-09-06）AI 解答与错因深度分析闭环
 
 - 提交哈希：（待回填）
+- 核心新流程：录入错题保存后自动跳转「AI 解答页」——AI 教师先给出**正确答案 + 分步解答过程**，再根据用户选择的错误原因（含逻辑缺陷定位）输出**针对性错因深度分析**（批判性思维视角），全部结果存档并在错题本/复习页复用。
+- 技术实现：
+  - 复用本机既有 OpenAI 兼容网关（凭据存 `data/ai.json`，不入库，符合安全红线）；`ai_chat`/`ai_solve_mistake` 引擎函数，教师系统提示词 + JSON 结构化输出 + 稳健解析（容忍 markdown 围栏/杂文本）；
+  - 新路由 `/solve`（解答页）、`/ai_solve`（POST，fetch 异步调用，含加载动画与失败重试）；
+  - `mistakes` 表新增 `ai_answer`/`ai_analysis` 列（保守迁移，DEFAULT ''）；
+  - 错题表单语义调整：「正确答案」→「我当时写的答案（可选，供 AI 对比分析）」；
+  - 错题列表：AI 解答 / AI 错因分析 / 我的答案 三层折叠展示，未解答的可一键补生成；复习页整合 AI 解答与分析。
+- 实测：真实网关调用，答案、分步过程、错因定位（含"移项后常数合并错误"的具体指出）全部正确。
+- 涉及文件：`app.py`、`templates/solve.html`（新增）、`templates/mistakes.html`、`templates/review.html`、`static/css/style.css`、`CHANGELOG.md`、`AGENTS.md`。
+- 回退方式：`git revert <hash>` 后热重载；AI 网关不可用时自动降级为手动模式，不影响其余功能。
+
+## v1.1.4（2026-09-06）AGENTS.md 记录免 root 热重载方法
+
+- 提交哈希：a6b3c8d
 - 站名已通过 SIGHUP 热重载在线上生效（v1.1.3 代码）；将「kill -HUP 平滑重启 worker」写入操作规范，今后代码修改 AI 可自行生效，无需用户 sudo。
 - 纯文档修改，不影响线上站点。
 - 涉及文件：`AGENTS.md`、`CHANGELOG.md`。
