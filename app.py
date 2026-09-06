@@ -284,11 +284,18 @@ def init_db():
         db.execute("ALTER TABLE mistakes ADD COLUMN ai_advice TEXT DEFAULT ''")
     db.execute("UPDATE mistakes SET cause='逻辑思维' WHERE cause='思路错误'")
     db.commit()
-    if q1_static(db, "SELECT COUNT(*) c FROM puzzles")["c"] == 0:
+    rev_row = q1_static(db, "SELECT value FROM config WHERE key='puzzle_rev'")
+    need_seed = q1_static(db, "SELECT COUNT(*) c FROM puzzles")["c"] == 0
+    need_reseed = not need_seed and (not rev_row or rev_row["value"] != str(seed_data.PUZZLE_REV))
+    if need_seed or need_reseed:
+        if need_reseed:
+            db.execute("DELETE FROM puzzles")
         for cat, diff, text, answer, explain in seed_data.PUZZLES:
             db.execute("INSERT INTO puzzles (category, diff, text, answer, explain) VALUES (?,?,?,?,?)",
                        (cat, diff, text, answer, explain))
-        db.commit()
+        db.execute("INSERT OR REPLACE INTO config (key, value) VALUES ('puzzle_rev', ?)",
+                   (str(seed_data.PUZZLE_REV),))
+    db.commit()
     if q1_static(db, "SELECT COUNT(*) c FROM kp")["c"] == 0:
         for stage, module, kps in seed_data.MODULE_TREE:
             for name in kps:
