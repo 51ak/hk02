@@ -67,19 +67,28 @@ def ai_chat(messages, max_tokens=3000, timeout=120):
         headers={"Authorization": "Bearer " + cfg["key"], "Content-Type": "application/json"},
     )
     last_err = None
-    for _ in range(2):
+    for attempt in range(3):
         try:
             with urllib.request.urlopen(req, timeout=timeout) as r:
                 data = json.loads(r.read())
-            return data["choices"][0]["message"]["content"], None
+            content = data["choices"][0]["message"]["content"] or ""
+            if content.strip() or attempt == 2:
+                return content, None
+            payload["max_tokens"] = min(8000, max(4000, payload["max_tokens"] * 2))
+            req = urllib.request.Request(
+                cfg["base"].rstrip("/") + "/chat/completions",
+                data=json.dumps(payload).encode(),
+                headers={"Authorization": "Bearer " + cfg["key"], "Content-Type": "application/json"},
+            )
+            last_err = "模型返回空内容（已自动加额重试）"
         except urllib.error.HTTPError as e:
-            if 500 <= e.code < 600:
+            if 500 <= e.code < 600 and attempt < 2:
                 last_err = f"HTTP {e.code}"
                 continue
             return None, f"HTTP {e.code}: {e.reason}"
         except Exception as e:
             return None, str(e)[:120]
-    return None, (last_err or "网关无响应") + "（已重试）"
+    return None, (last_err or "网关无响应")
 
 
 def _sections(text, marks=None, keys=None):
