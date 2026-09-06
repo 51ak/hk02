@@ -103,7 +103,7 @@ setup-root.sh     # 一键上线脚本（root 执行，幂等）
 
 ## 操作规范
 
-- 改代码后：`sudo systemctl restart hk02`（需 root，由用户执行）。
+- 改代码后免 root 生效（AI 可直接执行）：`kill -HUP $(systemctl show hk02 -p MainPID --value)`——gunicorn master 以 claudeuser 运行，SIGHUP 平滑重启 worker 加载新代码；若无效再请用户 `sudo systemctl restart hk02`。
 - 改 nginx：先备份 → `nginx -t` 通过 → reload；片段见 `nginx-hk02.conf`；批量上线用 `setup-root.sh`。
 - 查问题：`systemctl status hk02`、`journalctl -u hk02 -n 50`、`tail logs/error.log`、`ss -tlnp | grep :8041`。
 - 模板内资源路径一律相对（`static/css/style.css`、`mistakes`），禁止 `/static/...`、`/api/...` 根绝对路径。
