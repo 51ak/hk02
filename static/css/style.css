@@ -232,6 +232,14 @@ label.chk em { font-style: normal; color: var(--muted); font-size: 11px; }
 .m-answer.ai { background: #fdf4ff; }
 .m-answer.mine { background: #fff7ed; }
 
+.photo-preview { max-width: 260px; max-height: 180px; border-radius: 8px; border: 1px solid var(--line); margin-top: 6px; }
+.seg-print textarea { border-left: 4px solid #9ca3af; }
+.seg-mine textarea { border-left: 4px solid #3b82f6; }
+.seg-corr textarea { border-left: 4px solid #ef4444; }
+.seg-mine-t { color: #1d4ed8; background: #eff6ff; border-radius: 6px; padding: 4px 10px; display: inline-block; }
+.seg-corr-t { color: #b91c1c; background: #fef2f2; border-radius: 6px; padding: 4px 10px; display: inline-block; }
+.m-answer.corr { background: #fef2f2; }
+
 @media (max-width: 600px) {
   .mod-name { width: 96px; font-size: 12.5px; }
   .kp-name { width: 108px; font-size: 12.5px; }

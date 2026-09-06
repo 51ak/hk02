@@ -1,4 +1,5 @@
 import os
+import base64
 import json
 import random
 import re
@@ -92,21 +93,28 @@ def _sections(text):
 
 def ai_solve_mistake(m, kp_name, grade, stage_name):
     my_answer = (m["answer"] or "").strip() or "未提供"
+    correction = ""
+    row = m.keys() if hasattr(m, "keys") else []
+    if "correction" in row:
+        correction = (m["correction"] or "").strip()
     logic = f"；逻辑缺陷自评：{m['logic_type']}（{LOGIC_TYPES.get(m['logic_type'], '')}）" if m["logic_type"] else ""
+    mine_block = f"【我当时的作答（手写识别）】{my_answer}\n"
+    corr_block = f"【红笔订正内容（识别）】{correction}\n" if correction else "【红笔订正内容（识别）】无\n"
     user = (
         f"【年级】{grade}（{stage_name}）\n"
-        f"【题目】{m['title']}\n（题目可能来自手写 OCR，可能有识别噪音，请智能纠错理解题意；几何题若图形信息缺失，按最常见情形作答并注明假设）\n"
-        f"【我当时写的答案/做法】{my_answer}\n"
+        f"【原题（印刷体识别，请以此为准解题）】{m['title']}\n"
+        "(以上文字可能来自OCR，可能有识别噪音，请智能纠错理解题意；几何题若图形信息缺失，按最常见情形作答并注明假设)\n"
+        + mine_block + corr_block +
         f"【我的错误原因自评】{m['cause']}{logic}（仅供参考，请你独立分析，不要照抄）\n\n"
         "请严格按以下四个小节输出，直接以方括号标题开头，不要输出其他任何内容：\n"
-        "【正确答案】最终答案，简洁明确\n"
+        "【正确答案】只依据【原题】作答，最终答案简洁明确\n"
         "【解答过程】分步编号（1. 2. 3. …），每步一行，写明依据的定理/法则，语言适合该年级学生自学\n"
-        "【错因深度分析】结合题目特点与我的做法，独立列举这道题最可能的 2~4 种错误原因"
-        "（如概念不清、方法选择不当、逻辑推理链断裂、审题遗漏条件、计算失误等），"
-        "每种给出典型表现与自查方法；若我提供了答案，指出最可能属于哪种并说明理由\n"
-        "【思维训练建议】3 条针对性建议：第 1 条为数学思维训练（门萨式逻辑推理、横向思维、"
-        "批判性思维/论证分析等，写明训练什么、怎么练）；第 2 条为针对本题型的专项练习方法；"
-        "第 3 条为学习习惯改进"
+        "【错因深度分析】对照【原题】与【我当时的作答】：定位我的作答具体错在第几步/哪个式子（直接引用我的错误内容），"
+        "说明为什么会错；若提供了【红笔订正内容】，对比订正思路与我的思路的关键差异（订正好在哪里）；"
+        "再补充这道题其他常见的 1~2 种错误原因及自查方法\n"
+        "【思维训练建议】根据上面定位到的具体错误，给 3 条针对性建议：第 1 条为数学思维训练"
+        "（门萨式逻辑推理、横向思维、批判性思维/论证分析等，写明针对我哪个薄弱点、怎么练）；"
+        "第 2 条为针对本题型的专项练习方法；第 3 条为学习习惯改进"
     )
     content, err = ai_chat([
         {"role": "system", "content": "你是一名经验丰富的中学数学教师，精通中国大陆初中与高中数学课程，讲解条理清晰、适合学生自学，分析问题直击要害。"},
@@ -282,6 +290,8 @@ def init_db():
         db.execute("ALTER TABLE mistakes ADD COLUMN ai_analysis TEXT DEFAULT ''")
     if "ai_advice" not in cols:
         db.execute("ALTER TABLE mistakes ADD COLUMN ai_advice TEXT DEFAULT ''")
+    if "correction" not in cols:
+        db.execute("ALTER TABLE mistakes ADD COLUMN correction TEXT DEFAULT ''")
     db.execute("UPDATE mistakes SET cause='逻辑思维' WHERE cause='思路错误'")
     db.commit()
     rev_row = q1_static(db, "SELECT value FROM config WHERE key='puzzle_rev'")
@@ -612,11 +622,21 @@ def save_photo(filestor):
     return name
 
 
+def valid_photo_name(name):
+    base = os.path.basename(name or "")
+    if not re.fullmatch(r"[\w.-]+\.(jpg|jpeg|png|webp|gif|bmp)", base, re.I):
+        return ""
+    if os.path.exists(os.path.join(PHOTO_DIR, base)):
+        return base
+    return ""
+
+
 @app.route("/save_mistake", methods=["POST"])
 def save_mistake():
     kp_id = request.form.get("kp_id", type=int)
     title = request.form.get("title", "").strip()
     answer = request.form.get("answer", "").strip()
+    correction = request.form.get("correction", "").strip()
     cause = request.form.get("cause", "其他")
     logic_type = request.form.get("logic_type", "").strip()
     if cause != "逻辑思维":
@@ -625,11 +645,11 @@ def save_mistake():
     diff = request.form.get("diff", 2, type=int)
     if not kp_id or not title:
         abort(400)
-    photo = save_photo(request.files.get("photo"))
+    photo = save_photo(request.files.get("photo")) or valid_photo_name(request.form.get("photo_name", ""))
     run(
-        """INSERT INTO mistakes (kp_id, title, answer, cause, logic_type, source, diff, photo, created, next_review)
-           VALUES (?,?,?,?,?,?,?,?,?,?)""",
-        (kp_id, title, answer, cause, logic_type, source, diff, photo, now_iso(), today_iso()),
+        """INSERT INTO mistakes (kp_id, title, answer, correction, cause, logic_type, source, diff, photo, created, next_review)
+           VALUES (?,?,?,?,?,?,?,?,?,?,?)""",
+        (kp_id, title, answer, correction, cause, logic_type, source, diff, photo, now_iso(), today_iso()),
     )
     apply_penalty(kp_id, cause)
     mid = q1("SELECT last_insert_rowid() id")["id"]
@@ -678,33 +698,68 @@ def ai_solve_form():
     return redirect("solve?id=" + str(mid))
 
 
-@app.route("/ocr", methods=["POST"])
-def ocr():
+def vision_split(photo_path):
+    with open(photo_path, "rb") as f:
+        b64 = base64.b64encode(f.read()).decode()
+    prompt = (
+        "你是专业的试卷识别助手。请把图片内容按三类分开转录：\n"
+        "1) original——印刷体题目文字（原题，黑色印刷）；\n"
+        "2) mine——学生手写作答（蓝色或黑色手写笔迹，含草稿演算）；\n"
+        "3) correction——订正/批改内容（红色笔迹、对勾叉号旁的改正等）。\n"
+        '只输出一个JSON：{"original":"...","mine":"...","correction":"..."}，'
+        "没有的类别留空字符串；每类文字按阅读顺序排列，换行用\\n；"
+        "数学式尽量按原样保留（如分数写为 a/b，根号写为√）；识别不确定的字用？标注。"
+    )
+    content, err = ai_chat([
+        {"role": "system", "content": "你是一个精确的OCR转录引擎，只输出JSON。"},
+        {"role": "user", "content": [
+            {"type": "text", "text": prompt},
+            {"type": "image_url", "image_url": {"url": "data:image/png;base64," + b64}},
+        ]},
+    ], max_tokens=2000)
+    if err:
+        return None, err
+    try:
+        text = content.strip()
+        text = re.sub(r"^```(json)?|```$", "", text.strip(), flags=re.MULTILINE).strip()
+        start, end = text.find("{"), text.rfind("}")
+        obj = json.loads(text[start:end + 1])
+        return {k: str(obj.get(k, "")).strip() for k in ("original", "mine", "correction")}, None
+    except Exception:
+        return None, "视觉识别返回异常"
+
+
+def ocr_plain(photo_path):
     engine = get_ocr()
     if engine is None:
-        return jsonify({"ok": False, "msg": "OCR 组件未安装，请手动输入题干（原图仍会保存）"})
+        return ""
+    result, _ = engine(photo_path)
+    if not result:
+        return ""
+    return "\n".join(r[1] for r in result)
+
+
+@app.route("/ocr", methods=["POST"])
+def ocr():
     f = request.files.get("photo")
     if not f or not f.filename:
         return jsonify({"ok": False, "msg": "未收到图片"})
     ext = os.path.splitext(f.filename)[1].lower()
     if ext not in PHOTO_EXTS:
         return jsonify({"ok": False, "msg": "不支持的图片格式"})
-    os.makedirs("/tmp/hk02_ocr", exist_ok=True)
-    tmp = os.path.join("/tmp/hk02_ocr", secrets.token_hex(8) + ext)
-    f.save(tmp)
-    try:
-        result, _ = engine(tmp)
-        if not result:
-            return jsonify({"ok": False, "msg": "未识别到文字，请手动输入"})
-        lines = [r[1] for r in result]
-        return jsonify({"ok": True, "text": "\n".join(lines)})
-    except Exception:
-        return jsonify({"ok": False, "msg": "识别出错，请手动输入"})
-    finally:
-        try:
-            os.remove(tmp)
-        except OSError:
-            pass
+    name = save_photo(f)
+    if not name:
+        return jsonify({"ok": False, "msg": "图片保存失败"})
+    path = os.path.join(PHOTO_DIR, name)
+    parts, err = vision_split(path)
+    if parts and (parts["original"] or parts["mine"] or parts["correction"]):
+        return jsonify({"ok": True, "mode": "vision", "photo": name, **parts})
+    fallback = ocr_plain(path)
+    if fallback:
+        return jsonify({"ok": True, "mode": "plain", "photo": name,
+                        "original": fallback, "mine": "", "correction": "",
+                        "msg": "视觉分区识别暂不可用，已整体识别，请手动划分原题/作答/订正"})
+    return jsonify({"ok": False, "photo": name, "msg": "未识别到文字，请手动输入（原图已保存）"})
 
 
 @app.route("/photo/<path:name>")

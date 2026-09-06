@@ -1,8 +1,12 @@
 (function () {
   var photo = document.getElementById('photoInput');
   var title = document.getElementById('titleInput');
+  var mine = document.getElementById('mineInput');
+  var corr = document.getElementById('corrInput');
   var status = document.getElementById('ocrStatus');
-  if (photo && title && status) {
+  var preview = document.getElementById('photoPreview');
+  var photoName = document.getElementById('photoName');
+  if (photo && status) {
     photo.addEventListener('change', function () {
       var f = photo.files && photo.files[0];
       if (!f) return;
@@ -10,19 +14,22 @@
         status.textContent = '图片超过 15MB，请压缩后重试';
         return;
       }
-      status.textContent = '正在识别手写内容…';
+      if (preview) {
+        preview.src = URL.createObjectURL(f);
+        preview.style.display = '';
+      }
+      status.textContent = '正在分区识别（印刷原题 / 手写作答 / 红笔订正）… 约 10~30 秒';
       var fd = new FormData();
       fd.append('photo', f);
       fetch('ocr', { method: 'POST', body: fd })
         .then(function (r) { return r.json(); })
         .then(function (d) {
+          if (d.photo && photoName) photoName.value = d.photo;
           if (d.ok) {
-            if (title.value.trim()) {
-              title.value = title.value.trim() + '\n' + d.text;
-            } else {
-              title.value = d.text;
-            }
-            status.textContent = '识别完成，请核对并修正识别文字；原图已随表单保存';
+            if (d.original && title) title.value = d.original;
+            if (d.mine && mine) mine.value = d.mine;
+            if (d.correction && corr) corr.value = d.correction;
+            status.textContent = d.msg || '识别完成，请核对三个框的内容并修正；原图已保存';
           } else {
             status.textContent = d.msg || '识别失败，请手动输入题干';
           }

@@ -10,7 +10,8 @@
   </div>
   <p class="quiz-title">{{ m.title }}</p>
   {% if m.photo %}<a class="photo-link" href="photo/{{ m.photo }}" target="_blank">🖼 查看题目原图</a>{% endif %}
-  {% if m.answer %}<p class="tiny">我当时写的答案：{{ m.answer }}</p>{% endif %}
+  {% if m.answer %}<p class="tiny seg-mine-t">✍️ 我当时的作答：{{ m.answer }}</p>{% endif %}
+  {% if m.correction %}<p class="tiny seg-corr-t">🔴 红笔订正：{{ m.correction }}</p>{% endif %}
 
   {% if m.ai_answer %}
   <div class="ai-result">

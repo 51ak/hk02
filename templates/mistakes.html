@@ -5,15 +5,20 @@
   <h2>录入错题</h2>
   <form method="post" action="save_mistake" class="form-grid" enctype="multipart/form-data" id="mistakeForm">
     <label class="wide photo-field">
-      拍照 / 上传题目图片（可选，支持手写）
+      拍照 / 上传题目图片（自动分区识别）
       <input type="file" name="photo" id="photoInput" accept="image/*" capture="environment">
-      <span class="tiny" id="ocrStatus">选图后自动识别手写内容填入题干；原图（含几何图形）将永久保留，可随时查看</span>
+      <span class="tiny" id="ocrStatus">选图后自动识别：印刷原题 / 手写作答 / 红笔订正 分开填入下方三个框（可修改）；原图永久保留</span>
+      <img id="photoPreview" class="photo-preview" style="display:none" alt="题目预览">
+      <input type="hidden" name="photo_name" id="photoName" value="">
     </label>
-    <label class="wide">题目内容 <span class="req">*</span>
+    <label class="wide seg-print">原题（印刷体）<span class="req">*</span>
       <textarea name="title" rows="3" id="titleInput" required placeholder="拍照自动识别，或手动抄题干（可简写关键条件）"></textarea>
     </label>
-    <label class="wide">我当时写的答案 / 做法（可选，供 AI 对比分析）
-      <textarea name="answer" rows="2" placeholder="留空也可——保存后 AI 会自动给出正确答案与分步解答"></textarea>
+    <label class="wide seg-mine">我当时的作答（手写，供 AI 对比分析）
+      <textarea name="answer" rows="2" id="mineInput" placeholder="留空也可——AI 会依据原题解答并分析"></textarea>
+    </label>
+    <label class="wide seg-corr">红笔订正内容（如有）
+      <textarea name="correction" rows="2" id="corrInput" placeholder="老师或自己用红笔订正的部分，AI 会对比订正与你的思路差异"></textarea>
     </label>
     <label>知识点 <span class="req">*</span>
       <select name="kp_id" required>
@@ -75,11 +80,12 @@
       </div>
       <p class="m-title">{{ r.title }}</p>
       {% if r.photo %}<a class="photo-link" href="photo/{{ r.photo }}" target="_blank">🖼 查看题目原图（含几何图形）</a>{% endif %}
+      {% if r.answer %}<details><summary>✍️ 我当时的作答（手写识别）</summary><p class="m-answer mine">{{ r.answer }}</p></details>{% endif %}
+      {% if r.correction %}<details><summary>🔴 红笔订正（识别）</summary><p class="m-answer corr">{{ r.correction }}</p></details>{% endif %}
       {% if r.logic_type %}<p class="logic-tag">逻辑缺陷：{{ r.logic_type }} — {{ logic_types.get(r.logic_type, '') }}</p>{% endif %}
       {% if r.ai_answer %}<details><summary>✅ AI 正确答案与解答</summary><p class="m-answer">{{ r.ai_answer }}</p></details>{% endif %}
       {% if r.ai_analysis %}<details><summary>🔍 AI 错因深度分析</summary><p class="m-answer ai">{{ r.ai_analysis }}</p></details>{% endif %}
       {% if r.ai_advice %}<details><summary>🧠 AI 思维训练建议</summary><p class="m-answer advice">{{ r.ai_advice }}</p></details>{% endif %}
-      {% if r.answer %}<details><summary>我当时写的答案</summary><p class="m-answer mine">{{ r.answer }}</p></details>{% endif %}
       {% if not r.ai_answer %}<a class="btn ghost sm" href="solve?id={{ r.id }}">生成 AI 解答与分析</a>{% endif %}
       <div class="m-meta">
         <span>难度 {{ '★' * r.diff }}</span>
