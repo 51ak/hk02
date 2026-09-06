@@ -1,8 +1,16 @@
 # CHANGELOG.md
 
-## v1.0.0（2026-09-06）建仓首版：AI数学成绩提升系统 MathBoost
+## v1.0.1（2026-09-06）新增一键上线脚本 setup-root.sh
 
 - 提交哈希：（待回填）
+- 背景：AI 会话内 sudo 被禁用（容器 no new privileges），服务安装与 nginx 变更无法代执行，站点仍显示关停页。
+- 内容：新增 `setup-root.sh`（root 一键执行：备份 nginx → 装 systemd 服务并启动 → 将 /hk02/ 关停提示块替换为 8041 反向代理 → `nginx -t` 通过后 reload → curl 验证）；幂等设计，重复执行安全；替换文本已用真实配置副本验证精确匹配。
+- 涉及文件：`setup-root.sh`、`CHANGELOG.md`。
+- 回退方式：`git revert <hash>`；nginx 回退用 `/tmp/top580-hstock.bak.<时间戳>` 覆盖回。
+
+## v1.0.0（2026-09-06）建仓首版：AI数学成绩提升系统 MathBoost
+
+- 提交哈希：2b3ecd3
 - 站点由关停状态重建为「AI 数学成绩提升系统」，部署于 /hk02/，端口 127.0.0.1:8041。
 - 功能：
   - 仪表盘：综合掌握度、今日待复习、模块掌握度条形图、薄弱知识点 TOP5、今日建议、成绩速览；
