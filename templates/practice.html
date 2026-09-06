@@ -1,0 +1,80 @@
+{% extends "base.html" %}
+{% block title %}智能练习 · AI 数学成绩提升系统{% endblock %}
+{% block content %}
+<div class="card">
+  <h2>智能练习</h2>
+  <p class="tiny">选题引擎：优先薄弱知识点 + 模块交错出题（交错练习比集中刷题记忆更牢）。</p>
+
+  <form method="post" action="practice_start" class="mode-form">
+    <input type="hidden" name="mode" value="weak">
+    <div class="mode-box">
+      <h3>① 智能弱项模式 <span class="rec">推荐</span></h3>
+      <p class="tiny">自动锁定当前最薄弱的知识点：</p>
+      <p class="weak-chips">{% for w in weak %}<span class="chip">{{ w.name }} {{ w.mastery }}</span>{% endfor %}</p>
+    </div>
+    <div class="mode-inline">
+      <label>题数
+        <select name="count">
+          <option value="5">5 题</option>
+          <option value="10" selected>10 题</option>
+          <option value="15">15 题</option>
+          <option value="20">20 题</option>
+        </select>
+      </label>
+      <button class="btn" type="submit">开始练习</button>
+    </div>
+  </form>
+
+  <hr>
+
+  <form method="post" action="practice_start" class="mode-form">
+    <input type="hidden" name="mode" value="all">
+    <div class="mode-box">
+      <h3>② 混合摸底模式</h3>
+      <p class="tiny">从{{ stage_name }}全部题库随机交错出题，适合定期摸底。</p>
+    </div>
+    <div class="mode-inline">
+      <label>题数
+        <select name="count">
+          <option value="5">5 题</option>
+          <option value="10" selected>10 题</option>
+          <option value="15">15 题</option>
+          <option value="20">20 题</option>
+        </select>
+      </label>
+      <button class="btn" type="submit">开始练习</button>
+    </div>
+  </form>
+
+  <hr>
+
+  <form method="post" action="practice_start" class="mode-form">
+    <input type="hidden" name="mode" value="custom">
+    <div class="mode-box">
+      <h3>③ 自选知识点专项</h3>
+      <p class="tiny">勾选要练的知识点（括号内为题库存题量）：</p>
+      <div class="kp-checks">
+        {% set last = namespace(mod="") %}
+        {% for k in kps %}
+        {% if k.module != last.mod %}{% set last.mod = k.module %}<div class="kp-mod">{{ k.module }}</div>{% endif %}
+        <label class="chk {{ 'off' if not counts.get(k.id) }}">
+          <input type="checkbox" name="kp" value="{{ k.id }}" {{ 'disabled' if not counts.get(k.id) }}>
+          {{ k.name }} <em>({{ counts.get(k.id, 0) }})</em>
+        </label>
+        {% endfor %}
+      </div>
+    </div>
+    <div class="mode-inline">
+      <label>题数
+        <select name="count">
+          <option value="5">5 题</option>
+          <option value="10" selected>10 题</option>
+          <option value="15">15 题</option>
+          <option value="20">20 题</option>
+        </select>
+      </label>
+      <button class="btn" type="submit">开始专项练习</button>
+    </div>
+  </form>
+</div>
+{% endblock %}

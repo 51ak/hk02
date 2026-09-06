@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{% block title %}AI 数学成绩提升系统{% endblock %}</title>
+<link rel="stylesheet" href="static/css/style.css">
+</head>
+<body>
+<header class="topbar">
+  <div class="wrap bar-in">
+    <a class="brand" href="dashboard">📐 MathBoost</a>
+    <span class="stage-tag">{{ stage_name }}</span>
+    {% if exam_days is not none and exam_days > 0 %}<span class="countdown">距考试 {{ exam_days }} 天</span>{% endif %}
+    <a class="logout" href="logout">退出</a>
+  </div>
+</header>
+<nav class="mainnav">
+  <div class="wrap nav-in">
+    <a href="dashboard" class="{{ 'on' if nav == 'dashboard' }}">仪表盘</a>
+    <a href="mistakes" class="{{ 'on' if nav == 'mistakes' }}">错题本</a>
+    <a href="review" class="{{ 'on' if nav == 'review' }}">复习</a>
+    <a href="practice" class="{{ 'on' if nav == 'practice' }}">智能练习</a>
+    <a href="mastery" class="{{ 'on' if nav == 'mastery' }}">掌握度</a>
+    <a href="scores" class="{{ 'on' if nav == 'scores' }}">成绩</a>
+    <a href="plan" class="{{ 'on' if nav == 'plan' }}">学习计划</a>
+    <a href="report" class="{{ 'on' if nav == 'report' }}">AI 报告</a>
+    <a href="settings" class="{{ 'on' if nav == 'settings' }}">设置</a>
+  </div>
+</nav>
+<main class="wrap">
+{% block content %}{% endblock %}
+</main>
+<footer class="wrap foot">
+  <p>科学依据：刻意练习 · 间隔重复 · 检索练习 · 错误驱动学习 · 掌握学习 · 交错练习 · 费曼技巧</p>
+</footer>
+</body>
+</html>

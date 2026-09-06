@@ -1,0 +1,111 @@
+{% extends "base.html" %}
+{% block title %}AI 诊断报告 · AI 数学成绩提升系统{% endblock %}
+{% block content %}
+<div class="card hero-report">
+  <h2>AI 综合诊断报告</h2>
+  <p class="tiny">生成时间：{{ now }} · 基于{{ stage_name }}知识图谱与全部练习数据</p>
+  <div class="report-overall">
+    <div>
+      <div class="stat-num {{ cls }}">{{ overall_m }}<small>/100</small></div>
+      <div class="stat-name">综合掌握度 · {{ label }}</div>
+    </div>
+    <div class="mini-stats">
+      <div><b>{{ practice_total }}</b><span>累计练习</span></div>
+      <div><b>{{ reviewed }}</b><span>累计复习</span></div>
+      <div><b>{{ active_n }}</b><span>待巩固错题</span></div>
+      <div><b>{{ total }}</b><span>错题归因数</span></div>
+    </div>
+  </div>
+</div>
+
+<div class="two-col">
+  <div class="card">
+    <h2>① 模块掌握度诊断</h2>
+    {% for m in mods %}
+    <div class="mod-row">
+      <span class="mod-name">{{ m.module }}</span>
+      <div class="bar grow"><i class="{{ m.cls }}" style="width: {{ m.avg | int }}%"></i></div>
+      <span class="mod-val">{{ m.avg }}</span>
+    </div>
+    {% endfor %}
+    {% if mods %}
+    <p class="tiny">短板优先级：{{ mods[0].module }}{% if mods | length > 1 %} → {{ mods[1].module }}{% endif %}。提升总分的性价比 = 短板模块 × 可投入时间。</p>
+    {% endif %}
+  </div>
+  <div class="card">
+    <h2>② 错因结构分析</h2>
+    {% if total %}
+    {% for d in dist %}
+    <div class="mod-row">
+      <span class="mod-name">{{ d.cause }}</span>
+      <div class="bar grow"><i class="{{ 'bad' if d.pct >= 30 else 'warn' }}" style="width: {{ d.pct }}%"></i></div>
+      <span class="mod-val">{{ d.c }} 题 · {{ d.pct }}%</span>
+    </div>
+    {% endfor %}
+    {% else %}
+    <p class="empty">还没有错题归因数据。录错题时写清错误原因，这里会给出针对性训练方案。</p>
+    {% endif %}
+  </div>
+</div>
+
+<div class="card">
+  <h2>③ 薄弱知识点清单（刻意练习靶点）</h2>
+  {% if weak %}
+  <ol class="weak-list">
+    {% for w in weak %}
+    <li><span>{{ w.module }} · {{ w.name }}</span><b class="{{ mastery_label(w.mastery)[1] }}">{{ w.mastery }}</b></li>
+    {% endfor %}
+  </ol>
+  <form method="post" action="practice_start" class="inline-form">
+    <input type="hidden" name="mode" value="weak">
+    <input type="hidden" name="count" value="10">
+    <button class="btn" type="submit">对这些弱点开始刻意练习</button>
+  </form>
+  {% else %}
+  <p class="empty">暂无薄弱知识点数据。</p>
+  {% endif %}
+</div>
+
+<div class="card">
+  <h2>④ 个性化提升建议</h2>
+  {% if advice %}
+  <ul class="tips">
+    {% for a in advice %}
+    <li><span class="tag">{{ a.cause }}{% if a.pct %} · {{ a.pct }}%{% endif %}</span>{{ a.text }}</li>
+    {% endfor %}
+  </ul>
+  {% else %}
+  <p class="empty">数据积累后（建议 ≥ 20 次练习、≥ 5 道错题）将生成针对性建议。</p>
+  {% endif %}
+</div>
+
+{% if scores %}
+<div class="card">
+  <h2>⑤ 成绩轨迹</h2>
+  <div class="score-chips">
+    {% for s in scores %}
+    <span class="chip">{{ s.date }} {{ s.kind }} <b>{{ s.score | int }}/{{ s.full | int }}</b></span>
+    {% endfor %}
+    {% if trend is not none %}
+    <span class="chip {{ 'good' if trend > 0 else ('bad' if trend < 0 else '') }}">阶段变化 {{ '+' if trend > 0 }}{{ trend }} 分（得分率）</span>
+    {% endif %}
+  </div>
+  {% if trend is not none and trend > 5 %}
+  <p class="tiny good">成绩呈上升趋势，说明复习节奏有效，保持当前模式。</p>
+  {% endif %}
+</div>
+{% endif %}
+
+<div class="card method-card">
+  <h2>本系统融合的学习科学模型</h2>
+  <ul class="method-list">
+    <li><b>掌握学习（Bloom）</b>：每个知识点独立追踪掌握度，不达标不翻篇。</li>
+    <li><b>刻意练习（Ericsson）</b>：始终瞄准“舒适区边缘”的薄弱点训练，不走量刷题。</li>
+    <li><b>间隔重复（Ebbinghaus）</b>：错题按遗忘曲线在临界点回炉，连续通过 3 次自动毕业。</li>
+    <li><b>检索练习</b>：复习必须先回想再看答案，测试效应强于重复阅读。</li>
+    <li><b>交错练习（Interleaving）</b>：出题时混合模块，提升辨析与迁移能力。</li>
+    <li><b>错误驱动学习</b>：每道错题强制归因，把“粗心”拆解为可训练的具体行为。</li>
+    <li><b>费曼技巧</b>：对“概念不清”型错误，用复述-暴露-重学的循环修补理解。</li>
+  </ul>
+</div>
+{% endblock %}

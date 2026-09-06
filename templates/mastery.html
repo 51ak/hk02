@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block title %}掌握度 · AI 数学成绩提升系统{% endblock %}
+{% block content %}
+<div class="card">
+  <h2>知识点掌握度图谱</h2>
+  <p class="tiny">掌握度由练习与复习的自评结果实时更新（自适应加权：练习次数越多，单次波动越小，越接近真实水平）。也可以直接自评校准。</p>
+  {% for m in tree %}
+  <h3 class="mod-title">{{ m.module }}</h3>
+  <div class="kp-table">
+    {% for k in m.kps %}
+    {% set lab = mastery_label(k.mastery) %}
+    <div class="kp-row">
+      <span class="kp-name">{{ k.name }}</span>
+      <div class="bar grow"><i class="{{ lab[1] }}" style="width: {{ k.mastery | int }}%"></i></div>
+      <span class="mod-val">{{ k.mastery }} <em>{{ lab[0] }}</em></span>
+      <form method="post" action="assess" class="inline-form assess-form">
+        <input type="hidden" name="kp_id" value="{{ k.id }}">
+        <select name="level">
+          {% for lv, name in levels.items() %}<option value="{{ lv }}">{{ name }}</option>{% endfor %}
+        </select>
+        <button class="btn ghost sm" type="submit">自评</button>
+      </form>
+    </div>
+    {% endfor %}
+  </div>
+  {% endfor %}
+</div>
+{% endblock %}

@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+{% block title %}学习计划 · AI 数学成绩提升系统{% endblock %}
+{% block content %}
+<div class="card">
+  <h2>生成学习计划</h2>
+  <form method="post" action="plan" class="form-grid">
+    <label>考试日期 <input type="date" name="exam_date" value="{{ exam_date }}" required></label>
+    <label>目标分数 <input type="text" name="target" value="{{ target }}" placeholder="如 110/150 或 95/100"></label>
+    <label>每日可投入（分钟）
+      <input type="number" name="minutes" value="{{ minutes }}" min="10" max="300" step="5">
+    </label>
+    <div class="form-actions"><button class="btn" type="submit">生成 / 更新计划</button></div>
+  </form>
+</div>
+
+{% if result %}
+<div class="card">
+  <h2>距离考试 {{ result.days }} 天 · {{ '冲刺节奏' if result.days <= 15 else '系统提升节奏' }}</h2>
+  {% if result.target %}<p class="tiny">目标：{{ result.target }}</p>{% endif %}
+  <div class="phase-list">
+    {% for name, desc in result.phases %}
+    <div class="phase">
+      <h3>{{ name }}</h3>
+      <p>{{ desc }}</p>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+
+<div class="two-col">
+  <div class="card">
+    <h2>每日任务模板（约 {{ result.minutes }} 分钟）</h2>
+    <ol class="daily-list">
+      {% for name, desc in result.daily %}
+      <li><b>{{ name }}</b> — {{ desc }}</li>
+      {% endfor %}
+    </ol>
+    <p class="tiny">每周日花 10 分钟回看「掌握度」页：模块条变长就是这周的有效性证明。</p>
+  </div>
+  <div class="card">
+    <h2>时间分配建议（按薄弱程度）</h2>
+    {% if result.shares %}
+    {% for s in result.shares %}
+    <div class="mod-row">
+      <span class="mod-name">{{ s.module }}</span>
+      <div class="bar grow"><i class="bad" style="width: {{ s.pct }}%"></i></div>
+      <span class="mod-val">{{ s.pct }}%</span>
+    </div>
+    {% endfor %}
+    <p class="tiny">差距 = 100 − 模块平均掌握度；占比越高说明越值得投入。</p>
+    {% else %}
+    <p class="empty">暂无模块数据。</p>
+    {% endif %}
+  </div>
+</div>
+{% else %}
+<div class="card center-card">
+  <p>填写考试日期后，系统会结合你的掌握度与错题数据，生成分阶段计划与每日任务模板。</p>
+</div>
+{% endif %}
+{% endblock %}

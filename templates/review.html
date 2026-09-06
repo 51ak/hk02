@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% block title %}复习 · AI 数学成绩提升系统{% endblock %}
+{% block content %}
+{% if item %}
+<div class="card review-card">
+  <p class="review-progress">今日剩余 <b>{{ left }}</b> 题 · 今日已复习 {{ done_today }} 题</p>
+  <div class="m-head">
+    <span class="m-kp">{{ item.module }} · {{ item.kp_name }}</span>
+    <span class="badge">{{ item.cause }}</span>
+  </div>
+  <p class="review-title">{{ item.title }}</p>
+  <details class="review-answer">
+    <summary>先独立回想，再点开对照答案</summary>
+    <p class="m-answer">{{ item.answer or '（未填写答案，凭记忆和笔记核对）' }}</p>
+  </details>
+  <p class="tiny center">诚实自评效果最好——检索练习的核心就是“先努力回想”。</p>
+  <div class="grade-btns">
+    <form method="post" action="review_answer" class="inline-form">
+      <input type="hidden" name="id" value="{{ item.id }}">
+      <input type="hidden" name="result" value="0">
+      <button class="btn bad-btn" type="submit">又错了</button>
+    </form>
+    <form method="post" action="review_answer" class="inline-form">
+      <input type="hidden" name="id" value="{{ item.id }}">
+      <input type="hidden" name="result" value="0.5">
+      <button class="btn warn-btn" type="submit">记模糊</button>
+    </form>
+    <form method="post" action="review_answer" class="inline-form">
+      <input type="hidden" name="id" value="{{ item.id }}">
+      <input type="hidden" name="result" value="1">
+      <button class="btn good-btn" type="submit">记住了</button>
+    </form>
+  </div>
+</div>
+{% else %}
+<div class="card center-card">
+  <p class="big-ok">🎉</p>
+  <h2>今日复习已清零</h2>
+  <p>今日已复习 {{ done_today }} 题。错题会在遗忘临界点自动回到队列，坚持每天清零效果最佳。</p>
+  <a class="btn" href="practice">去做一组练习</a>
+</div>
+{% endif %}
+{% endblock %}

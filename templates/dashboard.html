@@ -1,0 +1,83 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="stat-grid">
+  <div class="card stat">
+    <div class="stat-num {{ cls }}">{{ overall_m }}<small>/100</small></div>
+    <div class="stat-name">综合掌握度 · {{ label }}</div>
+    <div class="bar"><i class="{{ cls }}" style="width: {{ overall_m|int }}%"></i></div>
+  </div>
+  <a class="card stat link" href="review">
+    <div class="stat-num {{ 'bad' if due_n else 'good' }}">{{ due_n }}</div>
+    <div class="stat-name">今日待复习错题</div>
+    <div class="stat-go">{{ '去复习 →' if due_n else '已完成 ✓' }}</div>
+  </a>
+  <a class="card stat link" href="mistakes">
+    <div class="stat-num">{{ mistakes_n }}</div>
+    <div class="stat-name">累计错题</div>
+    <div class="stat-go">查看错题本 →</div>
+  </a>
+  <a class="card stat link" href="practice">
+    <div class="stat-num">{{ practice_n }}</div>
+    <div class="stat-name">累计练习题次</div>
+    <div class="stat-go">开始今日练习 →</div>
+  </a>
+</div>
+
+{% if scores %}
+<div class="card">
+  <h2>最近成绩</h2>
+  <div class="score-chips">
+    {% for s in scores %}
+    <span class="chip">{{ s.date[5:] }} {{ s.kind }} <b>{{ s.score|int }}/{{ s.full|int }}</b></span>
+    {% endfor %}
+    {% if trend is not none %}
+    <span class="chip {{ 'good' if trend > 0 else ('bad' if trend < 0 else '') }}">
+      趋势 {{ '+' if trend > 0 }}{{ trend }} 分（得分率）
+    </span>
+    {% endif %}
+  </div>
+</div>
+{% endif %}
+
+<div class="two-col">
+  <div class="card">
+    <h2>模块掌握度</h2>
+    {% for m in mods %}
+    <div class="mod-row">
+      <span class="mod-name">{{ m.module }}</span>
+      <div class="bar grow"><i class="{{ m.cls }}" style="width: {{ m.avg|int }}%"></i></div>
+      <span class="mod-val">{{ m.avg }}</span>
+    </div>
+    {% endfor %}
+    <a class="btn ghost sm" href="mastery">查看全部知识点 →</a>
+  </div>
+  <div class="card">
+    <h2>最薄弱知识点 TOP5</h2>
+    {% if weak %}
+    <ol class="weak-list">
+      {% for w in weak %}
+      <li><span>{{ w.name }}</span><b class="{{ mastery_label(w.mastery)[1] }}">{{ w.mastery }}</b></li>
+      {% endfor %}
+    </ol>
+    <form method="post" action="practice_start" class="inline-form">
+      <input type="hidden" name="mode" value="weak">
+      <input type="hidden" name="count" value="10">
+      <button class="btn" type="submit">针对弱项练 10 题</button>
+    </form>
+    {% else %}
+    <p class="empty">暂无数据，先去练习或自评掌握度。</p>
+    {% endif %}
+  </div>
+</div>
+
+<div class="card">
+  <h2>今日建议</h2>
+  <ul class="tips">
+    {% for tag, text, link in tips %}
+    <li><span class="tag">{{ tag }}</span>{{ text }}
+      {% if link %}<a href="{{ link }}">前往 →</a>{% endif %}
+    </li>
+    {% endfor %}
+  </ul>
+</div>
+{% endblock %}

@@ -1,0 +1,83 @@
+{% extends "base.html" %}
+{% block title %}错题本 · AI 数学成绩提升系统{% endblock %}
+{% block content %}
+<div class="card">
+  <h2>录入错题</h2>
+  <form method="post" action="save_mistake" class="form-grid">
+    <label>题目内容 <span class="req">*</span>
+      <textarea name="title" rows="3" required placeholder="抄题干（可简写关键条件）"></textarea>
+    </label>
+    <label>正确答案
+      <textarea name="answer" rows="2" placeholder="正确解法或答案要点（复习时对照用）"></textarea>
+    </label>
+    <label>知识点 <span class="req">*</span>
+      <select name="kp_id" required>
+        {% set last = namespace(mod="") %}
+        {% for k in kps %}
+        {% if k.module != last.mod %}{% set last.mod = k.module %}<optgroup label="{{ k.module }}">{% endif %}
+        <option value="{{ k.id }}">{{ k.name }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    <label>错误原因
+      <select name="cause">
+        {% for c in causes %}<option value="{{ c }}">{{ c }}</option>{% endfor %}
+      </select>
+    </label>
+    <label>难度
+      <select name="diff">
+        <option value="1">简单</option>
+        <option value="2" selected>中等</option>
+        <option value="3">较难</option>
+      </select>
+    </label>
+    <label>出处
+      <input type="text" name="source" placeholder="如：期中卷 / 课本P23">
+    </label>
+    <div class="form-actions"><button class="btn" type="submit">存入错题本</button></div>
+  </form>
+  <p class="tiny">录入后系统会立即下调该知识点掌握度，并从明天起按间隔重复安排复习。</p>
+</div>
+
+<div class="card">
+  <h2>错题列表</h2>
+  <div class="filters">
+    <a href="mistakes?status=active{{ '&cause=' + cause if cause }}" class="{{ 'on' if status == 'active' }}">待巩固 {{ '(' + (rows | selectattr('status', 'equalto', 'active') | list | length | string) + ')' if status == 'active' else '' }}</a>
+    <a href="mistakes?status=mastered{{ '&cause=' + cause if cause }}" class="{{ 'on' if status == 'mastered' }}">已毕业 {{ '(' + (rows | selectattr('status', 'equalto', 'mastered') | list | length | string) + ')' if status == 'mastered' else '' }}</a>
+    <a href="mistakes?status=all{{ '&cause=' + cause if cause }}" class="{{ 'on' if status == 'all' }}">全部</a>
+    <span class="sep">|</span>
+    <a href="mistakes?status={{ status }}" class="{{ 'on' if not cause }}">全部原因</a>
+    {% for c in causes %}
+    <a href="mistakes?status={{ status }}&cause={{ c }}" class="{{ 'on' if cause == c }}">{{ c }}</a>
+    {% endfor %}
+  </div>
+  {% if rows %}
+  <div class="mistake-list">
+    {% for r in rows %}
+    <div class="mistake-item">
+      <div class="m-head">
+        <span class="badge cause-{{ loop.index % 6 }}">{{ r.cause }}</span>
+        <span class="m-kp">{{ r.module }} · {{ r.kp_name }}</span>
+        <span class="m-date">{{ r.created[:10] if r.created }}</span>
+        {% if r.status == 'mastered' %}<span class="badge ok">已毕业</span>{% endif %}
+      </div>
+      <p class="m-title">{{ r.title }}</p>
+      {% if r.answer %}<details><summary>查看正确答案</summary><p class="m-answer">{{ r.answer }}</p></details>{% endif %}
+      <div class="m-meta">
+        <span>难度 {{ '★' * r.diff }}</span>
+        {% if r.source %}<span>出处：{{ r.source }}</span>{% endif %}
+        <span>已复习 {{ r.reviews }} 次</span>
+        {% if r.status == 'active' %}<span>下次复习：{{ r.next_review }}</span>{% endif %}
+        <form method="post" action="delete_mistake" class="inline-form" onsubmit="return confirm('确定删除这道错题？')">
+          <input type="hidden" name="id" value="{{ r.id }}">
+          <button class="link-btn" type="submit">删除</button>
+        </form>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+  {% else %}
+  <p class="empty">该条件下没有错题。保持下去！</p>
+  {% endif %}
+</div>
+{% endblock %}

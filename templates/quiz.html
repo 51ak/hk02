@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+{% block title %}练习中 · AI 数学成绩提升系统{% endblock %}
+{% block content %}
+{% if done %}
+<div class="card center-card">
+  <h2>本组完成 🎯</h2>
+  {% set right = results | selectattr('result', 'equalto', 1) | list | length %}
+  {% set half = results | selectattr('result', 'equalto', 0.5) | list | length %}
+  {% set wrong = results | selectattr('result', 'equalto', 0) | list | length %}
+  <p class="summary-line">答对 <b class="good">{{ right }}</b> · 半对 <b class="warn">{{ half }}</b> · 答错 <b class="bad">{{ wrong }}</b>，掌握度已更新。</p>
+  {% if wrong %}
+  <p class="tiny">答错的题已自动录入错题本（原因默认“其他”，可在错题本中细化归因），明天进入复习队列。</p>
+  {% endif %}
+  <div class="btn-row">
+    <a class="btn" href="practice">再来一组</a>
+    <a class="btn ghost" href="dashboard">回仪表盘</a>
+  </div>
+</div>
+{% else %}
+<div class="card quiz-card">
+  <div class="quiz-progress"><i style="width: {{ (i * 100 / n) | round }}%"></i></div>
+  <p class="quiz-count">第 {{ i + 1 }} / {{ n }} 题 · {{ item.module }} · {{ item.kp_name }} · 难度 {{ '★' * item.diff }}</p>
+  <p class="quiz-title">{{ item.text }}</p>
+  <details class="review-answer">
+    <summary>在纸上作答后，点开核对答案</summary>
+    <p class="m-answer">{{ item.answer }}</p>
+  </details>
+  <p class="tiny center">按真实水平自评，系统才能准确估计掌握度。</p>
+  <div class="grade-btns">
+    <form method="post" action="quiz_answer" class="inline-form">
+      <input type="hidden" name="qid" value="{{ item.id }}">
+      <input type="hidden" name="result" value="0">
+      <button class="btn bad-btn" type="submit">不会做</button>
+    </form>
+    <form method="post" action="quiz_answer" class="inline-form">
+      <input type="hidden" name="qid" value="{{ item.id }}">
+      <input type="hidden" name="result" value="0.5">
+      <button class="btn warn-btn" type="submit">半对</button>
+    </form>
+    <form method="post" action="quiz_answer" class="inline-form">
+      <input type="hidden" name="qid" value="{{ item.id }}">
+      <input type="hidden" name="result" value="1">
+      <button class="btn good-btn" type="submit">做对了</button>
+    </form>
+  </div>
+</div>
+{% endif %}
+{% endblock %}

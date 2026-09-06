@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% block title %}设置 · AI 数学成绩提升系统{% endblock %}
+{% block content %}
+<div class="card">
+  <h2>学习档案</h2>
+  {% if saved %}<p class="alert ok">已保存。</p>{% endif %}
+  <form method="post" action="settings" class="form-grid">
+    <input type="hidden" name="action" value="profile">
+    <label>学段
+      <select name="stage">
+        {% for k, v in stages.items() %}<option value="{{ k }}" {{ 'selected' if stage == k }}>{{ v }}</option>{% endfor %}
+      </select>
+    </label>
+    <label>考试日期 <input type="date" name="exam_date" value="{{ exam_date }}"></label>
+    <label>目标分数 <input type="text" name="target" value="{{ target }}" placeholder="如 110/150"></label>
+    <label>每日可投入（分钟）<input type="number" name="minutes" value="{{ minutes }}" min="10" max="300"></label>
+    <div class="form-actions"><button class="btn" type="submit">保存档案</button></div>
+  </form>
+  <p class="tiny">切换学段会切换知识点图谱与题库；两学段数据互不干扰。</p>
+</div>
+
+<div class="card">
+  <h2>修改密码</h2>
+  {% if pw_msg %}<p class="alert {{ 'ok' if pw_msg == '密码已更新' }}">{{ pw_msg }}</p>{% endif %}
+  <form method="post" action="settings" class="form-grid">
+    <input type="hidden" name="action" value="pw">
+    <label>旧密码 <input type="password" name="old" required></label>
+    <label>新密码 <input type="password" name="new" required minlength="4"></label>
+    <div class="form-actions"><button class="btn" type="submit">更新密码</button></div>
+  </form>
+</div>
+{% endblock %}
