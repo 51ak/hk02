@@ -1705,6 +1705,19 @@ def play():
                            lv_info=lv_info, pony_icon=pony_icon, pony_nm=pony_nm)
 
 
+def plainify(text):
+    t = str(text or "")
+    t = t.replace("\\n", "\n").replace("\\t", " ")
+    t = re.sub(r"\\[\(\[]|\\[\)\]]", "", t)
+    t = re.sub(r"\\(?:quad|text|mathrm|mathbf|begin\{[a-z*]+\}|end\{[a-z*]+\}|hline)", " ", t)
+    t = t.replace("**", "").replace("__", "").replace("`", "")
+    t = re.sub(r"^#{1,6}\s*", "", t, flags=re.MULTILINE)
+    t = re.sub(r"^\s*[-*]\s+", "· ", t, flags=re.MULTILINE)
+    t = re.sub(r"\$[^$]*\$", lambda m: m.group(0).strip("$"), t)
+    t = re.sub(r"[ \t]{2,}", " ", t)
+    return t.strip()
+
+
 def weekly_token():
     with open(KEY_PATH) as f:
         key = f.read().strip()
@@ -1780,13 +1793,15 @@ def weekly_ai():
         f"{profile_text()}\n本周数据：练习 {n_pr} 题、复习 {n_rv} 次、思维训练 {n_th} 题、新增错题 {n_mk} 道；"
         f"各科掌握度：{'；'.join(data)}。\n\n"
         "请以班主任口吻写一段给家长的周评（150~250字）：先肯定亮点（结合她的兴趣与性格），"
-        "再委婉指出 1 个需要关注的点，最后给家长 1 条可操作的家庭配合建议。真诚具体，不说套话。"
+        "再委婉指出 1 个需要关注的点，最后给家长 1 条可操作的家庭配合建议。真诚具体，不说套话。\n"
+        "格式硬性要求：纯中文白话，给家长看；严禁出现任何数学公式、LaTeX、代码、Markdown 符号"
+        "（不要 ** 加粗、不要 \\( \\) 包裹数字，数字直接写）；分段用自然换行。"
     )
-    content, err = ai_chat([{"role": "system", "content": "你是了解学生的班主任，评语温暖而有分寸。"},
+    content, err = ai_chat([{"role": "system", "content": "你是了解学生的班主任，评语温暖而有分寸，只用纯文本写作。"},
                             {"role": "user", "content": ask}], max_tokens=800)
     if err:
         return jsonify({"ok": False, "msg": "AI 评语生成失败：" + err})
-    return jsonify({"ok": True, "text": content.strip()})
+    return jsonify({"ok": True, "text": plainify(content)})
 
 
 TOOL_KINDS = {"formula": "数学公式", "poem": "古诗文", "word": "英语词卡"}

@@ -66,7 +66,7 @@
   {% if ai_error %}<p class="alert">AI 生成失败：{{ ai_error }}，请稍后重试。</p>{% endif %}
   {% if latest %}
   <p class="tiny">生成于 {{ latest.created }}</p>
-  <div class="report-body pre">{{ latest.report }}</div>
+  <div class="report-body pre">{{ plainify(latest.report) }}</div>
   {% elif latest_assess %}
   <div class="report-body pre">{{ latest_assess.report }}</div>
   <p class="tiny">↑ 来自 {{ latest_assess.created[:10] }} 的测评结论</p>

@@ -4,7 +4,7 @@
 <div class="card hero-report">
   <h2>{{ (story_meta.theme.icon ~ " " ~ story_meta.theme.name ~ " · 本章结局") if story_meta else ((meta.name if meta else "") ~ " · " ~ kind_name ~ "报告") }}</h2>
   <p class="tiny">{{ a.created }} · {{ student_name }} · {{ region }}</p>
-  <div class="report-body pre">{{ a.report }}</div>
+  <div class="report-body pre">{{ plainify(a.report) }}</div>
 </div>
 <div class="card">
   <h2>逐题回顾</h2>

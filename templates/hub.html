@@ -63,7 +63,7 @@
     {% if latest %}
     <h2>最近 AI 摸底结论</h2>
     <p class="tiny">{{ latest.created[:16] }} · {{ kind_labels.get(latest.kind, latest.kind) }}</p>
-    <div class="report-clip">{{ latest.report[:420] }}{% if latest.report | length > 420 %}…{% endif %}</div>
+    <div class="report-clip">{{ plainify(latest.report)[:420] }}{% if latest.report | length > 420 %}…{% endif %}</div>
     <div class="btn-row">
       <a class="btn ghost sm" href="{{ R }}ceping_result?id={{ latest.id }}">完整报告 →</a>
       <a class="btn ghost sm" href="{{ R }}report">学科报告 →</a>
