@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% block title %}几何作图板 · 黄曼清的MathBoost{% endblock %}
+{% block content %}
+<div class="card">
+  <h2>几何作图板</h2>
+  <p class="tiny">用于给几何题配图：画好后点「作为错题附图」，AI 解题时能结合图形分析。支持点、线段、直线、射线、圆、多边形、垂线、平行线、中点、角度、文字标注。</p>
+  <div class="toolbar" id="toolbar">
+    <button data-mode="move" class="tool on">✋ 移动</button>
+    <button data-mode="point" class="tool">· 点</button>
+    <button data-mode="segment" class="tool">— 线段</button>
+    <button data-mode="line" class="tool">↔ 直线</button>
+    <button data-mode="ray" class="tool">→ 射线</button>
+    <button data-mode="circle" class="tool">◯ 圆</button>
+    <button data-mode="polygon" class="tool">▦ 多边形</button>
+    <button data-mode="perp" class="tool">⊥ 垂线</button>
+    <button data-mode="parallel" class="tool">∥ 平行线</button>
+    <button data-mode="midpoint" class="tool">⊗ 中点</button>
+    <button data-mode="angle" class="tool">∠ 角度</button>
+    <button data-mode="text" class="tool">T 文字</button>
+    <button data-mode="delete" class="tool danger">✕ 删除</button>
+    <span class="tool-sep"></span>
+    <button id="undoBtn" class="tool">↩ 撤销</button>
+    <button id="clearBtn" class="tool danger">🗑 清空</button>
+  </div>
+  <div id="jxgbox" class="jxgbox"></div>
+  <p class="tiny" id="drawHint">当前：移动模式——可直接拖动图形元素</p>
+  <div class="btn-row">
+    <button id="attachBtn" class="btn">作为错题附图</button>
+    <button id="downloadBtn" class="btn ghost">下载 PNG</button>
+    <a class="btn ghost" href="mistakes">去录错题</a>
+  </div>
+</div>
+<link rel="stylesheet" href="static/css/jsxgraph.css">
+<script src="static/js/jsxgraphcore.js"></script>
+<script src="static/js/draw.js"></script>
+{% endblock %}

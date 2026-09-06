@@ -73,16 +73,16 @@ def ai_chat(messages, max_tokens=3000, timeout=120):
 
 
 def _sections(text):
-    marks = ["【正确答案】", "【解答过程】", "【错因深度分析】", "【思维训练建议】"]
-    out = {"answer": "", "steps": "", "analysis": "", "advice": ""}
-    keys = ["answer", "steps", "analysis", "advice"]
+    marks = ["【图形识别】", "【正确答案】", "【解答过程】", "【错因深度分析】", "【思维训练建议】"]
+    out = {"figure": "", "answer": "", "steps": "", "analysis": "", "advice": ""}
+    keys = ["figure", "answer", "steps", "analysis", "advice"]
     pos = []
     for mk in marks:
         i = text.find(mk)
         pos.append(i)
-    if pos[0] < 0:
+    if pos[1] < 0 and pos[0] < 0:
         return None
-    for n in range(4):
+    for n in range(5):
         if pos[n] < 0:
             continue
         start = pos[n] + len(marks[n])
@@ -100,15 +100,25 @@ def ai_solve_mistake(m, kp_name, grade, stage_name):
     logic = f"；逻辑缺陷自评：{m['logic_type']}（{LOGIC_TYPES.get(m['logic_type'], '')}）" if m["logic_type"] else ""
     mine_block = f"【我当时的作答（手写识别）】{my_answer}\n"
     corr_block = f"【红笔订正内容（识别）】{correction}\n" if correction else "【红笔订正内容（识别）】无\n"
+    photo_path = ""
+    try:
+        row_p = m["photo"] if "photo" in (m.keys() if hasattr(m, "keys") else []) else ""
+        if row_p and os.path.exists(os.path.join(PHOTO_DIR, row_p)):
+            photo_path = os.path.join(PHOTO_DIR, row_p)
+    except Exception:
+        photo_path = ""
     user = (
         f"【年级】{grade}（{stage_name}）\n"
         f"【原题（印刷体识别，请以此为准解题）】{m['title']}\n"
-        "(以上文字可能来自OCR，可能有识别噪音，请智能纠错理解题意；几何题若图形信息缺失，按最常见情形作答并注明假设)\n"
+        "(以上文字可能来自OCR，可能有识别噪音，请智能纠错理解题意)\n"
         + mine_block + corr_block +
         f"【我的错误原因自评】{m['cause']}{logic}（仅供参考，请你独立分析，不要照抄）\n\n"
-        "请严格按以下四个小节输出，直接以方括号标题开头，不要输出其他任何内容：\n"
-        "【正确答案】只依据【原题】作答，最终答案简洁明确\n"
-        "【解答过程】分步编号（1. 2. 3. …），每步一行，写明依据的定理/法则，语言适合该年级学生自学\n"
+        + ("题目附有原图（含几何图形与作答笔迹），请结合图片理解题意。\n" if photo_path else "")
+        + "请严格按以下小节输出，直接以方括号标题开头，不要输出其他任何内容：\n"
+        + ("【图形识别】描述你从图片中读出的图形结构：各点线圆的位置关系、标记（直角/等长/平行等）、"
+           "已知条件在图中的体现，以及题意理解；无图形信息则写“无”。\n" if photo_path else "")
+        + "【正确答案】只依据【原题】（及图片）作答，最终答案简洁明确\n"
+        "【解答过程】分步编号（1. 2. 3. …），每步一行，写明依据的定理/法则，几何题注明用了图中哪些关系，语言适合该年级学生自学\n"
         "【错因深度分析】对照【原题】与【我当时的作答】：定位我的作答具体错在第几步/哪个式子（直接引用我的错误内容），"
         "说明为什么会错；若提供了【红笔订正内容】，对比订正思路与我的思路的关键差异（订正好在哪里）；"
         "再补充这道题其他常见的 1~2 种错误原因及自查方法\n"
@@ -116,10 +126,26 @@ def ai_solve_mistake(m, kp_name, grade, stage_name):
         "（门萨式逻辑推理、横向思维、批判性思维/论证分析等，写明针对我哪个薄弱点、怎么练）；"
         "第 2 条为针对本题型的专项练习方法；第 3 条为学习习惯改进"
     )
-    content, err = ai_chat([
+    messages = [
         {"role": "system", "content": "你是一名经验丰富的中学数学教师，精通中国大陆初中与高中数学课程，讲解条理清晰、适合学生自学，分析问题直击要害。"},
         {"role": "user", "content": user},
-    ])
+    ]
+    if photo_path:
+        vpath, vtmp = _shrink_for_vision(photo_path)
+        try:
+            with open(vpath, "rb") as f:
+                b64 = base64.b64encode(f.read()).decode()
+            messages[1]["content"] = [
+                {"type": "text", "text": user},
+                {"type": "image_url", "image_url": {"url": "data:image/jpeg;base64," + b64}},
+            ]
+        finally:
+            if vtmp:
+                try:
+                    os.remove(vtmp)
+                except OSError:
+                    pass
+    content, err = ai_chat(messages)
     if err:
         return None, err
     sec = _sections(content)
@@ -146,6 +172,16 @@ def ai_solve_mistake(m, kp_name, grade, stage_name):
                 if _complete(sec2["advice"]) or not sec["advice"]:
                     sec["advice"] = sec["advice"] or sec2["advice"]
     return sec, None
+
+
+def _fmt_ai_answer(result):
+    parts = []
+    if result.get("figure"):
+        parts.append("【图形识别】" + result["figure"])
+    parts.append(result.get("answer", ""))
+    if result.get("steps"):
+        parts.append("【解答过程】\n" + result["steps"])
+    return "\n\n".join(p for p in parts if p)
 
 
 def load_ocr():
@@ -606,7 +642,7 @@ def mistakes():
         rows = [r for r in rows if r["cause"] == cause]
     kps = stage_kps(stage)
     return render_template("mistakes.html", rows=rows, kps=kps, causes=CAUSES,
-                           logic_types=LOGIC_TYPES,
+                           logic_types=LOGIC_TYPES, prefill_photo=request.args.get("photo", ""),
                            status=status, cause=cause, stage_name=seed_data.STAGES.get(stage, stage))
 
 
@@ -677,8 +713,7 @@ def ai_solve():
     if err:
         return jsonify({"ok": False, "msg": "AI 解答失败：" + err + "，可稍后重试"})
     run("UPDATE mistakes SET ai_answer=?, ai_analysis=?, ai_advice=? WHERE id=?",
-        ((result["answer"] + ("\n\n【解答过程】\n" + result["steps"] if result["steps"] else "")),
-         result["analysis"], result["advice"], mid))
+        (_fmt_ai_answer(result), result["analysis"], result["advice"], mid))
     return jsonify({"ok": True, **result})
 
 
@@ -693,8 +728,7 @@ def ai_solve_form():
     result, err = ai_solve_mistake(m, m["kp_name"], grade, stage_name)
     if not err:
         run("UPDATE mistakes SET ai_answer=?, ai_analysis=?, ai_advice=? WHERE id=?",
-            ((result["answer"] + ("\n\n【解答过程】\n" + result["steps"] if result["steps"] else "")),
-             result["analysis"], result["advice"], mid))
+            (_fmt_ai_answer(result), result["analysis"], result["advice"], mid))
     return redirect("solve?id=" + str(mid))
 
 
@@ -801,6 +835,32 @@ def ocr():
                         "original": fallback, "mine": "", "correction": "",
                         "msg": "视觉分区识别暂不可用，已整体识别，请手动划分原题/作答/订正"})
     return jsonify({"ok": False, "photo": name, "msg": "未识别到文字，请手动输入（原图已保存）"})
+
+
+@app.route("/draw")
+def draw():
+    return render_template("draw.html")
+
+
+@app.route("/save_drawing", methods=["POST"])
+def save_drawing():
+    data = request.get_json(silent=True) or {}
+    image = data.get("image", "")
+    m = re.match(r"^data:image/(png|jpeg);base64,(.+)$", image, re.S)
+    if not m:
+        return jsonify({"ok": False, "msg": "图片数据无效"})
+    ext = "png" if m.group(1) == "png" else "jpg"
+    try:
+        raw = base64.b64decode(m.group(2))
+    except Exception:
+        return jsonify({"ok": False, "msg": "图片解码失败"})
+    if len(raw) > 10 * 1024 * 1024:
+        return jsonify({"ok": False, "msg": "图片过大"})
+    os.makedirs(PHOTO_DIR, exist_ok=True)
+    name = datetime.now().strftime("%Y%m%d%H%M%S") + "_draw_" + secrets.token_hex(6) + "." + ext
+    with open(os.path.join(PHOTO_DIR, name), "wb") as f:
+        f.write(raw)
+    return jsonify({"ok": True, "photo": name})
 
 
 @app.route("/photo/<path:name>")

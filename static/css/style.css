@@ -240,7 +240,14 @@ label.chk em { font-style: normal; color: var(--muted); font-size: 11px; }
 .seg-corr-t { color: #b91c1c; background: #fef2f2; border-radius: 6px; padding: 4px 10px; display: inline-block; }
 .m-answer.corr { background: #fef2f2; }
 
+.toolbar { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
+.toolbar .tool { border: 1px solid var(--line); background: #fff; border-radius: 8px; padding: 6px 12px; font-size: 13px; cursor: pointer; }
+.toolbar .tool.on { background: var(--brand); color: #fff; border-color: var(--brand); }
+.toolbar .tool.danger { color: var(--bad); }
+.toolbar .tool-sep { flex: 0 0 1px; background: var(--line); margin: 2px 4px; }
+.jxgbox { width: 100%; height: 460px; border: 1px solid var(--line); border-radius: 10px; background: #fff; overflow: hidden; }
 @media (max-width: 600px) {
+  .jxgbox { height: 340px; }
   .mod-name { width: 96px; font-size: 12.5px; }
   .kp-name { width: 108px; font-size: 12.5px; }
   .mod-val { width: 70px; }

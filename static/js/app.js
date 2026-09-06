@@ -6,6 +6,10 @@
   var status = document.getElementById('ocrStatus');
   var preview = document.getElementById('photoPreview');
   var photoName = document.getElementById('photoName');
+  if (photoName && photoName.value && preview) {
+    preview.src = 'photo/' + photoName.value;
+    preview.style.display = '';
+  }
   if (photo && status) {
     photo.addEventListener('change', function () {
       var f = photo.files && photo.files[0];

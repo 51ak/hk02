@@ -87,7 +87,10 @@
       .then(function (d) {
         pending.style.display = 'none';
         if (d.ok) {
-          document.getElementById('aiAns').textContent = d.steps ? (d.answer + '\n\n【解答过程】\n' + d.steps) : d.answer;
+          var text = '';
+          if (d.figure) text += '【图形识别】' + d.figure + '\n\n';
+          text += d.steps ? (d.answer + '\n\n【解答过程】\n' + d.steps) : d.answer;
+          document.getElementById('aiAns').textContent = text;
           document.getElementById('aiAnalysis').textContent = d.analysis || '（未生成，可点击重新生成）';
           document.getElementById('aiAdvice').textContent = d.advice || '（未生成）';
           result.style.display = '';

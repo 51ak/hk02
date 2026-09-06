@@ -7,9 +7,10 @@
     <label class="wide photo-field">
       拍照 / 上传题目图片（自动分区识别）
       <input type="file" name="photo" id="photoInput" accept="image/*" capture="environment">
-      <span class="tiny" id="ocrStatus">选图后自动识别：印刷原题 / 手写作答 / 红笔订正 分开填入下方三个框（可修改）；原图永久保留</span>
+      <span class="tiny" id="ocrStatus">选图后自动识别：印刷原题 / 手写作答 / 红笔订正 分开填入下方三个框（可修改）；原图永久保留。
+        {% if prefill_photo %}已带入作图板的图，可继续拍照替换或直接填写文字{% else %}没有照片？<a href="draw">📐 打开几何作图板</a>自己画{% endif %}</span>
       <img id="photoPreview" class="photo-preview" style="display:none" alt="题目预览">
-      <input type="hidden" name="photo_name" id="photoName" value="">
+      <input type="hidden" name="photo_name" id="photoName" value="{{ prefill_photo }}">
     </label>
     <label class="wide seg-print">原题（印刷体）<span class="req">*</span>
       <textarea name="title" rows="3" id="titleInput" required placeholder="拍照自动识别，或手动抄题干（可简写关键条件）"></textarea>
