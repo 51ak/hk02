@@ -725,6 +725,7 @@ def subject_shell():
             ("mistakes", "错题本", root + "mistakes?subject=math"),
             ("review", "复习", root + "review?subject=math"),
             ("mastery", "掌握度", root + "mastery"),
+            ("skills", "答题技巧", root + "subject/math/skills"),
             ("scores", "成绩", root + "scores"),
             ("plan", "计划", root + "plan"),
             ("report", "报告", root + "report"),
@@ -737,6 +738,7 @@ def subject_shell():
             ("mistakes", "错题本", root + "mistakes?subject=" + code),
             ("review", "复习", root + "review?subject=" + code),
             ("mastery", "掌握度", base + "/mastery"),
+            ("skills", "答题技巧", base + "/skills"),
             ("scores", "成绩", base + "/scores"),
             ("report", "报告", base + "/report"),
         ]
@@ -1312,6 +1314,17 @@ def subject_gen_report(code):
     run("INSERT INTO subject_reports (subject, report, created) VALUES (?,?,?)",
         (code, content.strip(), now_iso()))
     return redirect(f"../{code}/report")
+
+
+@app.route("/subject/<code>/skills")
+def subject_skills(code):
+    if code not in seed_data.SUBJECTS:
+        abort(404)
+    meta = seed_data.SUBJECTS[code]
+    groups = {}
+    for cat, title, body in seed_data.SKILLS.get(code, []):
+        groups.setdefault(cat, []).append({"title": title, "body": body})
+    return render_template("skills.html", code=code, meta=meta, groups=groups)
 
 
 def weekly_token():
