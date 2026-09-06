@@ -3,13 +3,13 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>{% block title %}AI 数学成绩提升系统{% endblock %}</title>
+<title>{% block title %}黄曼清的MathBoost{% endblock %}</title>
 <link rel="stylesheet" href="static/css/style.css">
 </head>
 <body>
 <header class="topbar">
   <div class="wrap bar-in">
-    <a class="brand" href="dashboard">📐 MathBoost</a>
+    <a class="brand" href="dashboard">📐 黄曼清的MathBoost</a>
     <span class="stage-tag">{{ stage_name }}</span>
     {% if exam_days is not none and exam_days > 0 %}<span class="countdown">距考试 {{ exam_days }} 天</span>{% endif %}
     <a class="logout" href="logout">退出</a>
