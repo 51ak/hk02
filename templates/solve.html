@@ -1,6 +1,10 @@
 {% extends "base.html" %}
 {% block title %}AI 解答 · {{ site_name }}{% endblock %}
 {% block content %}
+{% if m.subject != 'chinese' %}
+<script src="{{ R }}static/js/jsxgraphcore.js"></script>
+<script src="{{ R }}static/js/figure.js"></script>
+{% endif %}
 <div class="card quiz-card">
   <h2>AI 解答与错因分析</h2>
   <div class="m-head">
@@ -15,6 +19,13 @@
 
   {% if m.ai_answer %}
   <div class="ai-result">
+    {% if m.ai_figure %}
+    <div class="ai-block fig">
+      <h3>📐 讲解图形（顶点可拖动探索）</h3>
+      <div id="aifig" class="figure-box"></div>
+      <p class="tiny">拖动图中各点，观察几何关系是否保持不变——这是理解定理的好方法</p>
+    </div>
+    {% endif %}
     <div class="ai-block ans">
       <h3>{{ '🎯 考察点与标准答案' if m.subject == 'chinese' else '✅ 正确答案与解答' }}</h3>
       <div class="steps-anim" data-steps="{{ m.ai_answer }}">{{ m.ai_answer }}</div>
@@ -47,6 +58,11 @@
     <button class="btn" id="aiRetry">重试</button>
   </div>
   <div id="aiResult" style="display:none" class="ai-result">
+    <div class="ai-block fig" id="aiFigBlock" style="display:none">
+      <h3>📐 讲解图形（顶点可拖动探索）</h3>
+      <div id="aifigLive" class="figure-box"></div>
+      <p class="tiny">拖动图中各点，观察几何关系是否保持不变——这是理解定理的好方法</p>
+    </div>
     <div class="ai-block ans">
       <h3>{{ '🎯 考察点与标准答案' if m.subject == 'chinese' else '✅ 正确答案与解答' }}</h3>
       <div id="aiAnsWrap"></div>
@@ -97,6 +113,10 @@
           if (d.steps) text += (d.answer ? d.answer + '\n\n' : '') + ({{ ('true' if m.subject == 'chinese' else 'false') | safe }} ? '【标准答案】\n' : '【解答过程】\n') + d.steps;
           else text += d.answer || '';
           enhanceSteps(document.getElementById('aiAnsWrap'), text);
+          if (d.figure) {
+            document.getElementById('aiFigBlock').style.display = '';
+            try { renderFigure('aifigLive', d.figure); } catch (e) {}
+          }
           document.getElementById('aiAnalysis').textContent = d.analysis || '（未生成，可点击重新生成）';
           document.getElementById('aiAdvice').textContent = d.advice || '（未生成）';
           result.style.display = '';
@@ -177,5 +197,11 @@ document.querySelectorAll('.steps-anim').forEach(function (el) {
   var t = el.getAttribute('data-steps') || el.textContent;
   enhanceSteps(el, t);
 });
+
+if (document.getElementById('aifig') && document.getElementById('aifigData')) {
+  try { renderFigure('aifig', JSON.parse(document.getElementById('aifigData').textContent)); } catch (e) {}
+}
 </script>
+<script type="application/json" id="aifigData">{{ m.ai_figure }}</script>
+
 {% endblock %}

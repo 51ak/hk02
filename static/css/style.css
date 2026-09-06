@@ -404,6 +404,9 @@ label.chk em { font-style: normal; color: var(--muted); font-size: 11px; }
 .skill-open { font-size: 12px; color: var(--muted); white-space: nowrap; }
 .skill-body { margin: 0; padding: 12px 16px 14px; font-size: 14px; white-space: pre-wrap; line-height: 1.8; animation: stepIn .3s ease both; }
 
+.figure-box { height: 400px; border: 1.5px solid var(--line); border-radius: 12px; background: #fff; overflow: hidden; }
+.ai-block.fig { background: #fbfaff; border: 1px solid var(--line); }
+
 @media (max-width: 700px) {
   .two-col { grid-template-columns: 1fr; }
   .jxgbox { height: 340px; }

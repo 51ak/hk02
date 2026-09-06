@@ -93,8 +93,8 @@ def ai_chat(messages, max_tokens=3000, timeout=120):
 
 def _sections(text, marks=None, keys=None):
     if marks is None:
-        marks = ["【图形识别】", "【正确答案】", "【解答过程】", "【错因深度分析】", "【思维训练建议】"]
-        keys = ["figure", "answer", "steps", "analysis", "advice"]
+        marks = ["【图形识别】", "【图形JSON】", "【正确答案】", "【解答过程】", "【错因深度分析】", "【思维训练建议】"]
+        keys = ["figure", "figjson", "answer", "steps", "analysis", "advice"]
     out = {k: "" for k in keys}
     pos = []
     for mk in marks:
@@ -207,6 +207,7 @@ def ai_solve_mistake(m, kp_name, grade, stage_name):
         + "请严格按以下小节输出，直接以方括号标题开头，不要输出其他任何内容：\n"
         + ("【图形识别】描述你从图片中读出的图形结构：各点线圆的位置关系、标记（直角/等长/平行等）、"
            "已知条件在图中的体现，以及题意理解；无图形信息则写“无”。\n" if photo_path else "")
+        + FIGURE_PROMPT
         + "【正确答案】只依据【原题】（及图片）作答，最终答案简洁明确\n"
         "【解答过程】分步编号（1. 2. 3. …），每步一行，写明依据的定理/法则，几何题注明用了图中哪些关系，语言适合该年级学生自学\n"
         "【错因深度分析】对照【原题】与【我当时的作答】：定位我的作答具体错在第几步/哪个式子（直接引用我的错误内容），"
@@ -278,6 +279,94 @@ def _fmt_ai_answer(result, chinese=False):
         if result.get("steps"):
             parts.append("【解答过程】\n" + result["steps"])
     return "\n\n".join(p for p in parts if p)
+
+
+FIG_ELEM_TYPES = {"polygon", "segment", "line", "ray", "circle", "angle", "right", "tick", "text"}
+
+
+def parse_figure_json(text):
+    if not text or "无" in text.strip()[:4] or "{" not in text:
+        return None
+    try:
+        start, end = text.find("{"), text.rfind("}")
+        obj = json.loads(text[start:end + 1])
+    except Exception:
+        return None
+    pts = obj.get("points")
+    if not isinstance(pts, dict) or len(pts) < 2:
+        return None
+    points = {}
+    for k, v in list(pts.items())[:24]:
+        name = str(k).strip()[:3]
+        if not name or any(c in name for c in "<>\"'"):
+            continue
+        try:
+            x, y = float(v[0]), float(v[1])
+        except Exception:
+            continue
+        if abs(x) <= 500 and abs(y) <= 500:
+            points[name] = [round(x, 2), round(y, 2)]
+    if len(points) < 2:
+        return None
+    elements = []
+    for el in (obj.get("elements") or [])[:40]:
+        if not isinstance(el, dict):
+            continue
+        t = el.get("t")
+        if t not in FIG_ELEM_TYPES:
+            continue
+        item = {"t": t}
+        if t == "circle":
+            if el.get("c") in points and el.get("p") in points:
+                item.update(c=el["c"], p=el["p"])
+            else:
+                continue
+        elif t == "text":
+            try:
+                item.update(at=[float(el["at"][0]), float(el["at"][1])])
+            except Exception:
+                continue
+            s = str(el.get("s", ""))[:40]
+            if not s or any(c in s for c in "<>"):
+                continue
+            item.update(s=s)
+        else:
+            names = [p for p in el.get("pts", []) if p in points]
+            need = 3 if t in ("polygon", "angle", "right") else 2
+            if len(names) < need:
+                continue
+            item.update(pts=names)
+            if t == "angle" and el.get("label"):
+                item.update(label=str(el["label"])[:12])
+            if t == "tick":
+                try:
+                    item.update(n=min(3, max(1, int(el.get("n", 1)))))
+                except Exception:
+                    item.update(n=1)
+        elements.append(item)
+    if not elements:
+        return None
+    fig = {"points": points, "elements": elements}
+    try:
+        bb = obj.get("bbox")
+        if bb and len(bb) == 4 and all(abs(float(x)) <= 500 for x in bb):
+            fig["bbox"] = [round(float(x), 2) for x in bb]
+    except Exception:
+        pass
+    return fig
+
+
+FIGURE_PROMPT = (
+    "【图形JSON】若本题是几何题（或附有几何图形），请再输出一个用于绘图讲解的JSON（紧凑单行）：\n"
+    '{"bbox":[xmin,ymax,xmax,ymin],"points":{"A":[x,y],"B":[x,y]},"elements":[...]}\n'
+    'elements 支持这些类型（t 字段）：polygon(多边形,pts=顶点数组)、segment(线段)、line(直线)、ray(射线)、'
+    'circle(c=圆心点,p=圆上点)、angle(角,pts=[边上点,顶点,边上点],label=如"60°")、'
+    'right(直角符号,pts=[边上点,直角顶点,边上点])、tick(等长刻度,pts=[线段两端],n=1~3)、'
+    'text(文字标注,at=[x,y],s=简短文字)。\n'
+    "要求：坐标取 0~10 合理范围并尽量还原形状关系；包含题目全部关键点与线段；"
+    "辅助线/关键添加线用 segment 并用 text 标注名称；已知条件（直角、等长、角度）用对应标记表达；"
+    "非几何题（纯代数/无图形）此节只输出：无\n"
+)
 
 
 def load_ocr():
@@ -450,6 +539,8 @@ def init_db():
         db.execute("ALTER TABLE mistakes ADD COLUMN ai_advice TEXT DEFAULT ''")
     if "correction" not in mcols:
         db.execute("ALTER TABLE mistakes ADD COLUMN correction TEXT DEFAULT ''")
+    if "ai_figure" not in mcols:
+        db.execute("ALTER TABLE mistakes ADD COLUMN ai_figure TEXT DEFAULT ''")
     if "subject" not in mcols:
         db.execute("ALTER TABLE mistakes ADD COLUMN subject TEXT DEFAULT 'math'")
     db.execute("UPDATE mistakes SET cause='逻辑思维' WHERE cause='思路错误'")
@@ -1007,8 +1098,11 @@ def ai_solve():
     result, err = ai_solve_mistake(m, m["kp_name"], grade, stage_name)
     if err:
         return jsonify({"ok": False, "msg": "AI 解答失败：" + err + "，可稍后重试"})
-    run("UPDATE mistakes SET ai_answer=?, ai_analysis=?, ai_advice=? WHERE id=?",
-        (_fmt_ai_answer(result, chinese=(msubj == "chinese")), result["analysis"], result["advice"], mid))
+    fig = parse_figure_json(result.get("figjson", "")) if msubj != "chinese" else None
+    run("UPDATE mistakes SET ai_answer=?, ai_analysis=?, ai_advice=?, ai_figure=? WHERE id=?",
+        (_fmt_ai_answer(result, chinese=(msubj == "chinese")), result["analysis"], result["advice"],
+         json.dumps(fig, ensure_ascii=False) if fig else "", mid))
+    result["figure"] = fig
     return jsonify({"ok": True, **result})
 
 
@@ -1023,8 +1117,10 @@ def ai_solve_form():
     msubj = m["subject"] or "math"
     result, err = ai_solve_mistake(m, m["kp_name"], grade, stage_name)
     if not err:
-        run("UPDATE mistakes SET ai_answer=?, ai_analysis=?, ai_advice=? WHERE id=?",
-            (_fmt_ai_answer(result, chinese=(msubj == "chinese")), result["analysis"], result["advice"], mid))
+        fig = parse_figure_json(result.get("figjson", "")) if msubj != "chinese" else None
+        run("UPDATE mistakes SET ai_answer=?, ai_analysis=?, ai_advice=?, ai_figure=? WHERE id=?",
+            (_fmt_ai_answer(result, chinese=(msubj == "chinese")), result["analysis"], result["advice"],
+             json.dumps(fig, ensure_ascii=False) if fig else "", mid))
     return redirect("solve?id=" + str(mid))
 
 
