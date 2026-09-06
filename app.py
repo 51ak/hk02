@@ -117,7 +117,10 @@ def ai_solve_mistake(m, kp_name, grade, stage_name):
     sec = _sections(content)
     if sec is None:
         sec = {"answer": content.strip()[:3000], "steps": "", "analysis": "", "advice": ""}
-    if not sec["analysis"] or not sec["advice"]:
+    def _complete(s):
+        return bool(s) and s.rstrip().endswith(("。", "！", "？", ".", "）", ")", "：", ":"))
+    need_more = (not _complete(sec["analysis"])) or (not _complete(sec["advice"]))
+    if need_more:
         extra, err2 = ai_chat([
             {"role": "system", "content": "你是一名专注于批判性思维训练的数学教师。"},
             {"role": "user", "content": (
@@ -130,8 +133,10 @@ def ai_solve_mistake(m, kp_name, grade, stage_name):
         if not err2 and extra:
             sec2 = _sections(extra)
             if sec2:
-                sec["analysis"] = sec["analysis"] or sec2["analysis"]
-                sec["advice"] = sec["advice"] or sec2["advice"]
+                if _complete(sec2["analysis"]) or not sec["analysis"]:
+                    sec["analysis"] = sec["analysis"] or sec2["analysis"]
+                if _complete(sec2["advice"]) or not sec["advice"]:
+                    sec["advice"] = sec["advice"] or sec2["advice"]
     return sec, None
 
 
