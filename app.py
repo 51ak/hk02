@@ -698,27 +698,48 @@ def subject_shell():
         if code not in seed_data.SUBJECTS:
             code = "math"
         tab = _TAB_BY_PATH.get(seg[0], "hub")
-    tabs = [
-        ("hub", "总览", "dashboard" if code == "math" else f"subject/{code}"),
-        ("practice", "练习", "practice" if code == "math" else f"subject/{code}/practice"),
-        ("mistakes", "错题本", f"mistakes?subject={code}"),
-        ("review", "复习", f"review?subject={code}"),
-        ("mastery", "掌握度", "mastery" if code == "math" else f"subject/{code}/mastery"),
-        ("scores", "成绩", "scores" if code == "math" else f"subject/{code}/scores"),
-        ("report", "报告", "report" if code == "math" else f"subject/{code}/report"),
-    ]
+    segs = [s for s in request.path.strip("/").split("/") if s]
     if code == "math":
-        tabs.insert(6, ("plan", "计划", "plan"))
+        tabs = [
+            ("hub", "总览", rel("dashboard")),
+            ("practice", "练习", rel("practice")),
+            ("mistakes", "错题本", rel(f"mistakes?subject=math")),
+            ("review", "复习", rel("review?subject=math")),
+            ("mastery", "掌握度", rel("mastery")),
+            ("scores", "成绩", rel("scores")),
+            ("plan", "计划", rel("plan")),
+            ("report", "报告", rel("report")),
+        ]
+    else:
+        within = max(len(segs) - 2, 0)
+        back = "../" * within if within else "./"
+        tabs = [
+            ("hub", "总览", back),
+            ("practice", "练习", back + "practice"),
+            ("mistakes", "错题本", rel(f"mistakes?subject={code}")),
+            ("review", "复习", rel(f"review?subject={code}")),
+            ("mastery", "掌握度", back + "mastery"),
+            ("scores", "成绩", back + "scores"),
+            ("report", "报告", back + "report"),
+        ]
     return {"code": code, "meta": seed_data.SUBJECTS[code], "tab": tab, "tabs": tabs}
+
+
+def rel(path):
+    segs = [s for s in request.path.strip("/").split("/") if s]
+    if not segs:
+        return path if path else "./"
+    return ("../" * len(segs)) + (path if not path.endswith("?") else path[:-1])
 
 
 @app.context_processor
 def inject_common():
     stage = cfg("stage", "cj")
+    segs = [s for s in request.path.strip("/").split("/") if s]
     return {
         "stage": stage,
         "stage_name": seed_data.STAGES.get(stage, stage),
-        "nav": request.path.strip("/").split("/")[0] or "home",
+        "nav": segs[0] if segs else "home",
         "exam_days": days_to_exam(),
         "mastery_label": mastery_label,
         "today": today_iso(),
@@ -730,6 +751,8 @@ def inject_common():
         "subjects": seed_data.SUBJECTS,
         "kind_labels": seed_data.ASSESS_KIND_LABEL,
         "sb": subject_shell(),
+        "rel": rel,
+        "home_url": ("../" * len(segs)) if segs else "./",
     }
 
 

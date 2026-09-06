@@ -9,19 +9,19 @@
 <body>
 <header class="topbar">
   <div class="wrap bar-in">
-    <a class="brand" href="."><span class="brand-mark">🎓</span>{{ site_name }}</a>
+    <a class="brand" href="{{ home_url }}"><span class="brand-mark">🎓</span>{{ site_name }}</a>
     <span class="pill">{{ student_name }} · {{ region }}</span>
     {% if exam_days is not none and exam_days > 0 %}<span class="pill warn">距考试 {{ exam_days }} 天</span>{% endif %}
-    <a class="logout" href="logout">退出</a>
+    <a class="logout" href="{{ rel('logout') }}">退出</a>
   </div>
 </header>
 <nav class="mainnav">
   <div class="wrap nav-in">
-    <a href="." class="{{ 'on' if nav == 'home' }}">首页</a>
-    <a href="ceping" class="{{ 'on' if nav.startswith('ceping') }}">摸底测评</a>
-    <a href="thinking" class="{{ 'on' if nav == 'thinking' }}">思维训练</a>
-    <a href="draw" class="{{ 'on' if nav == 'draw' }}">几何作图</a>
-    <a href="settings" class="{{ 'on' if nav == 'settings' }}">设置</a>
+    <a href="{{ home_url }}" class="{{ 'on' if nav == 'home' }}">首页</a>
+    <a href="{{ rel('ceping') }}" class="{{ 'on' if nav.startswith('ceping') }}">摸底测评</a>
+    <a href="{{ rel('thinking') }}" class="{{ 'on' if nav == 'thinking' }}">思维训练</a>
+    <a href="{{ rel('draw') }}" class="{{ 'on' if nav == 'draw' }}">几何作图</a>
+    <a href="{{ rel('settings') }}" class="{{ 'on' if nav == 'settings' }}">设置</a>
   </div>
 </nav>
 {% if sb %}

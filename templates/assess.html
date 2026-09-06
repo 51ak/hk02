@@ -24,9 +24,9 @@
     {% endfor %}
   </div>
   {% if subject %}
-  <p class="tiny center">当前科目：<b>{{ smeta.name }}</b> · 切换科目请从 <a href=".">首页</a>进入对应学科</p>
+  <p class="tiny center">当前科目：<b>{{ smeta.name }}</b> · 切换科目请从 <a href="{{ home_url }}">首页</a>进入对应学科</p>
   {% else %}
-  <p class="tiny center">当前默认科目：数学 · 切换科目请从 <a href=".">首页</a>进入对应学科</p>
+  <p class="tiny center">当前默认科目：数学 · 切换科目请从 <a href="{{ home_url }}">首页</a>进入对应学科</p>
   {% endif %}
 </div>
 
