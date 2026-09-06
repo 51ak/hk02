@@ -13,7 +13,7 @@
       <span class="kp-name">{{ k.name }}</span>
       <div class="bar grow"><i class="{{ lab[1] }}" style="width: {{ k.mastery | int }}%"></i></div>
       <span class="mod-val">{{ k.mastery }} <em>{{ lab[0] }}</em></span>
-      <form method="post" action="self_rate" class="inline-form assess-form">
+      <form method="post" action="{{ R }}self_rate" class="inline-form assess-form">
         <input type="hidden" name="kp_id" value="{{ k.id }}">
         <select name="level">
           {% for lv, name in levels.items() %}<option value="{{ lv }}">{{ name }}</option>{% endfor %}

@@ -7,7 +7,7 @@
       <h2>AI 专项练习</h2>
       <p class="tiny">AI 按你的年级与画像现场出题（5 题，难度阶梯），融入马术/赛艇/钢琴场景；提交后逐题判定 + 讲评，并自动更新板块掌握度。</p>
     </div>
-    <form method="post" action="{{ rel('ceping_start') }}">
+    <form method="post" action="{{ R }}ceping_start">
       <input type="hidden" name="subject" value="{{ code }}">
       <input type="hidden" name="kind" value="practice">
       <button class="btn big" type="submit">开始练习</button>
@@ -26,8 +26,8 @@
       <td>{{ kind_labels.get(h.kind, h.kind) }}</td>
       <td>{{ '✅ 已完成' if h.done else '⏳ 进行中' }}</td>
       <td>
-        {% if h.done %}<a class="btn ghost sm" href="{{ rel('ceping_result?id=') }}{{ h.id }}">查看讲评</a>
-        {% else %}<a class="btn ghost sm" href="{{ rel('ceping_do?id=') }}{{ h.id }}">继续</a>{% endif %}
+        {% if h.done %}<a class="btn ghost sm" href="{{ R }}ceping_result?id={{ h.id }}">查看讲评</a>
+        {% else %}<a class="btn ghost sm" href="{{ R }}ceping_do?id={{ h.id }}">继续</a>{% endif %}
       </td>
     </tr>
     {% endfor %}
@@ -39,6 +39,6 @@
 
 <div class="card">
   <h2>没有题库的科目怎么练？</h2>
-  <p class="tiny">数学有内置 254 题题库做智能练习；其他科目由 AI 实时命题——每次题目都针对你的年级、当前薄弱板块和兴趣定制，做完即时讲评。错题请录入「<a href="mistakes?subject={{ code }}&status=all">错题本</a>」，AI 会解答并分析。</p>
+  <p class="tiny">数学有内置 254 题题库做智能练习；其他科目由 AI 实时命题——每次题目都针对你的年级、当前薄弱板块和兴趣定制，做完即时讲评。错题请录入「<a href="{{ R }}mistakes?subject={{ code }}&status=all">错题本</a>」，AI 会解答并分析。</p>
 </div>
 {% endblock %}

@@ -189,7 +189,7 @@
     var cv = canvasEl();
     if (!cv) return;
     hint.textContent = '正在保存附图…';
-    fetch('save_drawing', {
+    fetch((window.APP_ROOT || '') + 'save_drawing', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ image: cv.toDataURL('image/png') })

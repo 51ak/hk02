@@ -18,16 +18,16 @@
 </section>
 
 <div class="home-stats">
-  <a class="hstat {{ 'hot' if due_total else '' }}" href="review">
+  <a class="hstat {{ 'hot' if due_total else '' }}" href="{{ R }}review">
     <b>{{ due_total }}</b><span>今日待复习</span><i>{{ '立即去复习' if due_total else '今日已清零 ✓' }}</i>
   </a>
-  <a class="hstat" href="ceping">
+  <a class="hstat" href="{{ R }}ceping">
     <b>{{ assess_n }}</b><span>AI 摸底测评</span><i>{{ '继续完善画像' if assess_n < 3 else '画像已建立' }}</i>
   </a>
-  <a class="hstat" href="dashboard">
+  <a class="hstat" href="{{ R }}dashboard">
     <b>数学</b><span>旗舰模块</span><i>掌握度引擎 · 智能练习</i>
   </a>
-  <a class="hstat" href="thinking">
+  <a class="hstat" href="{{ R }}thinking">
     <b>思维</b><span>每日一题</span><i>门萨式训练打卡</i>
   </a>
 </div>
@@ -38,7 +38,7 @@
 </div>
 <div class="subject-grid">
   {% for c in cards %}
-  <a class="subject-card" href="{{ 'dashboard' if c.code == 'math' else 'subject/' ~ c.code }}"
+  <a class="subject-card" href="{{ R }}{{ 'dashboard' if c.code == 'math' else 'subject/' ~ c.code }}"
      style="--g1: {{ c.c1 }}; --g2: {{ c.c2 }}">
     <span class="sc-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">{{ c.icon | safe }}</svg></span>
     {% if c.assessed %}<span class="sc-badge">已摸底</span>{% endif %}
@@ -61,7 +61,7 @@
 <div class="card tip-card">
   <h2>用好这套系统</h2>
   <ul class="tips">
-    <li><span class="tag">第一次</span>每科做一次「<a href="ceping">AI 摸底</a>」，系统为你建立能力画像，内容随使用越来越懂你</li>
+    <li><span class="tag">第一次</span>每科做一次「<a href="{{ R }}ceping">AI 摸底</a>」，系统为你建立能力画像，内容随使用越来越懂你</li>
     <li><span class="tag">日常</span>错题拍照录入，AI 解答 + 错因深度分析 + 思维训练建议一步到位</li>
     <li><span class="tag">复习</span>每天清空到期复习，间隔重复把记忆钉在遗忘临界点上</li>
     <li><span class="tag">报告</span>每科随时生成 AI 报告：优势、短板与四周定制方案</li>

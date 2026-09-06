@@ -12,8 +12,8 @@
   <p class="tiny">答错的题已自动录入错题本（原因默认“其他”，可在错题本中细化归因），明天进入复习队列。</p>
   {% endif %}
   <div class="btn-row">
-    <a class="btn" href="practice">再来一组</a>
-    <a class="btn ghost" href="dashboard">回仪表盘</a>
+    <a class="btn" href="{{ R }}practice">再来一组</a>
+    <a class="btn ghost" href="{{ R }}dashboard">回仪表盘</a>
   </div>
 </div>
 {% else %}
@@ -27,17 +27,17 @@
   </details>
   <p class="tiny center">按真实水平自评，系统才能准确估计掌握度。</p>
   <div class="grade-btns">
-    <form method="post" action="quiz_answer" class="inline-form">
+    <form method="post" action="{{ R }}quiz_answer" class="inline-form">
       <input type="hidden" name="qid" value="{{ item.id }}">
       <input type="hidden" name="result" value="0">
       <button class="btn bad-btn" type="submit">不会做</button>
     </form>
-    <form method="post" action="quiz_answer" class="inline-form">
+    <form method="post" action="{{ R }}quiz_answer" class="inline-form">
       <input type="hidden" name="qid" value="{{ item.id }}">
       <input type="hidden" name="result" value="0.5">
       <button class="btn warn-btn" type="submit">半对</button>
     </form>
-    <form method="post" action="quiz_answer" class="inline-form">
+    <form method="post" action="{{ R }}quiz_answer" class="inline-form">
       <input type="hidden" name="qid" value="{{ item.id }}">
       <input type="hidden" name="result" value="1">
       <button class="btn good-btn" type="submit">做对了</button>

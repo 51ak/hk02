@@ -16,27 +16,27 @@
 </div>
 
 <div class="stat-grid">
-  <a class="card stat link" href="{{ rel('review?subject=' ~ code) }}">
+  <a class="card stat link" href="{{ R }}review?subject={{ code }}">
     <div class="stat-num {{ 'bad' if due_n else 'good' }}">{{ due_n }}</div>
     <div class="stat-name">今日待复习</div>
     <div class="stat-go">{{ '去复习 →' if due_n else '已完成 ✓' }}</div>
   </a>
-  <a class="card stat link" href="practice">
+  <a class="card stat link" href="{{ R }}practice">
     <div class="stat-num">AI</div>
     <div class="stat-name">专项练习</div>
     <div class="stat-go">出一组定制题 →</div>
   </a>
-  <a class="card stat link" href="{{ rel('mistakes?subject=' ~ code ~ '&status=all') }}">
+  <a class="card stat link" href="{{ R }}mistakes?subject={{ code }}&status=all">
     <div class="stat-num">{{ mistakes_n }}</div>
     <div class="stat-name">累计错题</div>
     <div class="stat-go">错题本 →</div>
   </a>
-  <a class="card stat link" href="{{ rel('ceping?subject=' ~ code) }}">
+  <a class="card stat link" href="{{ R }}ceping?subject={{ code }}">
     <div class="stat-num">摸底</div>
     <div class="stat-name">能力画像</div>
     <div class="stat-go">{{ '重新测评 →' if latest else '首次测评 →' }}</div>
   </a>
-  <a class="card stat link" href="report">
+  <a class="card stat link" href="{{ R }}report">
     <div class="stat-num">报告</div>
     <div class="stat-name">AI 学习报告</div>
     <div class="stat-go">{{ '查看最新 →' if latest else '生成定制方案 →' }}</div>
@@ -55,8 +55,8 @@
     </div>
     {% endfor %}
     <div class="btn-row">
-      <a class="btn ghost sm" href="mastery">自评校准 →</a>
-      <a class="btn ghost sm" href="scores">成绩记录 →</a>
+      <a class="btn ghost sm" href="{{ R }}mastery">自评校准 →</a>
+      <a class="btn ghost sm" href="{{ R }}scores">成绩记录 →</a>
     </div>
   </div>
   <div class="card">
@@ -65,13 +65,13 @@
     <p class="tiny">{{ latest.created[:16] }} · {{ kind_labels.get(latest.kind, latest.kind) }}</p>
     <div class="report-clip">{{ latest.report[:420] }}{% if latest.report | length > 420 %}…{% endif %}</div>
     <div class="btn-row">
-      <a class="btn ghost sm" href="{{ rel('ceping_result?id=' ~ latest.id) }}">完整报告 →</a>
-      <a class="btn ghost sm" href="report">学科报告 →</a>
+      <a class="btn ghost sm" href="{{ R }}ceping_result?id={{ latest.id }}">完整报告 →</a>
+      <a class="btn ghost sm" href="{{ R }}report">学科报告 →</a>
     </div>
     {% else %}
     <h2>还没有做过{{ meta.name }}摸底</h2>
     <p class="tiny">AI 会按年级与兴趣出一套题（学科/思维/认知三选），探测板块强弱与思维特点，生成定制学习方案；画像随使用持续更新。</p>
-    <form method="post" action="{{ rel('ceping_start') }}" class="btn-row">
+    <form method="post" action="{{ R }}ceping_start" class="btn-row">
       <input type="hidden" name="subject" value="{{ code }}">
       <input type="hidden" name="kind" value="subject">
       <button class="btn" type="submit">开始学科摸底（6 题）</button>
@@ -82,7 +82,7 @@
 
 <div class="card">
   <h2>快速录错题（拍照自动分区识别）</h2>
-  <form method="post" action="{{ rel('save_mistake') }}" class="form-grid" enctype="multipart/form-data" id="mistakeForm">
+  <form method="post" action="{{ R }}save_mistake" class="form-grid" enctype="multipart/form-data" id="mistakeForm">
     <label class="wide photo-field">
       拍照 / 上传试卷图片
       <input type="file" name="photo" id="photoInput" accept="image/*" capture="environment">
@@ -126,13 +126,13 @@
         <span class="m-date">{{ r.created[:10] if r.created }}</span>
       </div>
       <p class="m-title">{{ r.title[:120] }}{% if r.title | length > 120 %}…{% endif %}</p>
-      {% if r.photo %}<a class="photo-link" href="{{ rel('photo/' ~ r.photo) }}" target="_blank">🖼 查看原图</a>{% endif %}
+      {% if r.photo %}<a class="photo-link" href="{{ R }}photo/{{ r.photo }}" target="_blank">🖼 查看原图</a>{% endif %}
       {% if r.ai_answer %}<details><summary>✅ AI 精讲（{{ '考察点与标准答案' if r.subject == 'chinese' else '正确答案与解答' }}）</summary><p class="m-answer">{{ r.ai_answer }}</p></details>{% endif %}
       {% if r.ai_analysis %}<details><summary>🔍 AI {{ '答案对比' if r.subject == 'chinese' else '错因深度分析' }}</summary><p class="m-answer ai">{{ r.ai_analysis }}</p></details>{% endif %}
     </div>
     {% endfor %}
   </div>
-  <a class="btn ghost sm" href="{{ rel('mistakes?subject=' ~ code ~ '&status=all') }}">查看全部 →</a>
+  <a class="btn ghost sm" href="{{ R }}mistakes?subject={{ code }}&status=all">查看全部 →</a>
   {% else %}
   <p class="empty">还没有错题记录——拍照录一道，AI 立即精讲。</p>
   {% endif %}

@@ -15,27 +15,27 @@
 </div>
 
 <div class="stat-grid">
-  <a class="card stat link" href="review">
+  <a class="card stat link" href="{{ R }}review">
     <div class="stat-num {{ 'bad' if due_n else 'good' }}">{{ due_n }}</div>
     <div class="stat-name">今日待复习错题</div>
     <div class="stat-go">{{ '去复习 →' if due_n else '已完成 ✓' }}</div>
   </a>
-  <a class="card stat link" href="mistakes">
+  <a class="card stat link" href="{{ R }}mistakes">
     <div class="stat-num">{{ mistakes_n }}</div>
     <div class="stat-name">累计错题</div>
     <div class="stat-go">查看错题本 →</div>
   </a>
-  <a class="card stat link" href="practice">
+  <a class="card stat link" href="{{ R }}practice">
     <div class="stat-num">{{ practice_n }}</div>
     <div class="stat-name">累计练习题次</div>
     <div class="stat-go">智能练习 →</div>
   </a>
-  <a class="card stat link" href="thinking">
+  <a class="card stat link" href="{{ R }}thinking">
     <div class="stat-num">🧠</div>
     <div class="stat-name">思维训练（门萨式）</div>
     <div class="stat-go">{{ '今日未打卡，去做一题 →' if not think_done else '今日已训练 ✓' }}</div>
   </a>
-  <a class="card stat link" href="report">
+  <a class="card stat link" href="{{ R }}report">
     <div class="stat-num">AI</div>
     <div class="stat-name">诊断报告 · 含逻辑缺陷处方</div>
     <div class="stat-go">查看 →</div>
@@ -68,7 +68,7 @@
       <span class="mod-val">{{ m.avg }}</span>
     </div>
     {% endfor %}
-    <a class="btn ghost sm" href="mastery">查看全部知识点 →</a>
+    <a class="btn ghost sm" href="{{ R }}mastery">查看全部知识点 →</a>
   </div>
   <div class="card">
     <h2>最薄弱知识点 TOP5</h2>
@@ -78,7 +78,7 @@
       <li><span>{{ w.name }}</span><b class="{{ mastery_label(w.mastery)[1] }}">{{ w.mastery }}</b></li>
       {% endfor %}
     </ol>
-    <form method="post" action="practice_start" class="inline-form">
+    <form method="post" action="{{ R }}practice_start" class="inline-form">
       <input type="hidden" name="mode" value="weak">
       <input type="hidden" name="count" value="10">
       <button class="btn" type="submit">针对弱项练 10 题</button>
@@ -94,7 +94,7 @@
   <ul class="tips">
     {% for tag, text, link in tips %}
     <li><span class="tag">{{ tag }}</span>{{ text }}
-      {% if link %}<a href="{{ link }}">前往 →</a>{% endif %}
+      {% if link %}<a href="{{ R }}{{ link }}">前往 →</a>{% endif %}
     </li>
     {% endfor %}
   </ul>

@@ -64,7 +64,7 @@
   <div class="train-rec">
     <b>针对性训练处方：</b>
     {% for c in recommended %}
-    <form method="post" action="thinking_start" class="inline-form">
+    <form method="post" action="{{ R }}thinking_start" class="inline-form">
       <input type="hidden" name="cat" value="{{ c }}">
       <input type="hidden" name="count" value="5">
       <button class="btn ghost sm" type="submit">{{ c }} ×5</button>
@@ -98,7 +98,7 @@
     <li><span>{{ w.module }} · {{ w.name }}</span><b class="{{ mastery_label(w.mastery)[1] }}">{{ w.mastery }}</b></li>
     {% endfor %}
   </ol>
-  <form method="post" action="practice_start" class="inline-form">
+  <form method="post" action="{{ R }}practice_start" class="inline-form">
     <input type="hidden" name="mode" value="weak">
     <input type="hidden" name="count" value="10">
     <button class="btn" type="submit">对这些弱点开始刻意练习</button>

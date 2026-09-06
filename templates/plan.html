@@ -3,7 +3,7 @@
 {% block content %}
 <div class="card">
   <h2>生成学习计划</h2>
-  <form method="post" action="plan" class="form-grid">
+  <form method="post" action="{{ R }}plan" class="form-grid">
     <label>考试日期 <input type="date" name="exam_date" value="{{ exam_date }}" required></label>
     <label>目标分数 <input type="text" name="target" value="{{ target }}" placeholder="如 110/150 或 95/100"></label>
     <label>每日可投入（分钟）

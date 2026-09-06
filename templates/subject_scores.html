@@ -3,7 +3,7 @@
 {% block content %}
 <div class="card">
   <h2>记录{{ meta.name }}成绩</h2>
-  <form method="post" action="{{ rel('save_score') }}" class="form-grid">
+  <form method="post" action="{{ R }}save_score" class="form-grid">
     <input type="hidden" name="subject" value="{{ code }}">
     <label>日期 <input type="date" name="date" value="{{ today }}" required></label>
     <label>类型
@@ -45,7 +45,7 @@
       <td>{{ (r.score * 100 / (r.full or 100)) | round(1) }}%</td>
       <td>{{ r.note }}</td>
       <td>
-        <form method="post" action="{{ rel('delete_score') }}" class="inline-form" onsubmit="return confirm('删除这条成绩？')">
+        <form method="post" action="{{ R }}delete_score" class="inline-form" onsubmit="return confirm('删除这条成绩？')">
           <input type="hidden" name="id" value="{{ r.id }}">
           <input type="hidden" name="subject" value="{{ code }}">
           <button class="link-btn" type="submit">删除</button>

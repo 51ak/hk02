@@ -18,7 +18,7 @@
   {% endfor %}
 </div>
 <div class="btn-row">
-  <a class="btn" href="ceping">再做一次测评</a>
-  <a class="btn ghost" href="{{ 'dashboard' if a.subject == 'math' else 'subject/' ~ a.subject }}">回学科主页</a>
+  <a class="btn" href="{{ R }}ceping">再做一次测评</a>
+  <a class="btn ghost" href="{{ R }}{{ 'dashboard' if a.subject == 'math' else 'subject/' ~ a.subject }}">回学科主页</a>
 </div>
 {% endblock %}

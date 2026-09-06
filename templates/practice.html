@@ -5,7 +5,7 @@
   <h2>智能练习</h2>
   <p class="tiny">选题引擎：优先薄弱知识点 + 模块交错出题（交错练习比集中刷题记忆更牢）。</p>
 
-  <form method="post" action="practice_start" class="mode-form">
+  <form method="post" action="{{ R }}practice_start" class="mode-form">
     <input type="hidden" name="mode" value="weak">
     <div class="mode-box">
       <h3>① 智能弱项模式 <span class="rec">推荐</span></h3>
@@ -27,7 +27,7 @@
 
   <hr>
 
-  <form method="post" action="practice_start" class="mode-form">
+  <form method="post" action="{{ R }}practice_start" class="mode-form">
     <input type="hidden" name="mode" value="all">
     <div class="mode-box">
       <h3>② 混合摸底模式</h3>
@@ -48,7 +48,7 @@
 
   <hr>
 
-  <form method="post" action="practice_start" class="mode-form">
+  <form method="post" action="{{ R }}practice_start" class="mode-form">
     <input type="hidden" name="mode" value="custom">
     <div class="mode-box">
       <h3>③ 自选知识点专项</h3>

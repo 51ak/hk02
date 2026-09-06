@@ -9,7 +9,7 @@
     {% if m.logic_type %}<span class="logic-tag">逻辑缺陷：{{ m.logic_type }}</span>{% endif %}
   </div>
   <p class="quiz-title">{{ m.title }}</p>
-  {% if m.photo %}<a class="photo-link" href="photo/{{ m.photo }}" target="_blank">🖼 查看题目原图</a>{% endif %}
+  {% if m.photo %}<a class="photo-link" href="{{ R }}photo/{{ m.photo }}" target="_blank">🖼 查看题目原图</a>{% endif %}
   {% if m.answer %}<p class="tiny seg-mine-t">✍️ 我当时的作答：{{ m.answer }}</p>{% endif %}
   {% if m.correction %}<p class="tiny seg-corr-t">🔴 红笔订正：{{ m.correction }}</p>{% endif %}
 
@@ -30,11 +30,11 @@
     </div>
     {% endif %}
     <div class="btn-row">
-      <form method="post" action="ai_solve_form" class="inline-form" id="regenForm">
+      <form method="post" action="{{ R }}ai_solve_form" class="inline-form" id="regenForm">
         <input type="hidden" name="id" value="{{ m.id }}">
         <button class="btn ghost" type="submit">🔄 重新生成</button>
       </form>
-      <a class="btn ghost" href="thinking">去做思维训练</a>
+      <a class="btn ghost" href="{{ R }}thinking">去做思维训练</a>
     </div>
   </div>
   {% else %}
@@ -63,16 +63,16 @@
   </div>
   {% endif %}
   <div class="btn-row" style="margin-top:14px">
-    <a class="btn ghost" href="mistakes?subject={{ m.subject or 'math' }}">回错题本</a>
+    <a class="btn ghost" href="{{ R }}mistakes?subject={{ m.subject or 'math' }}">回错题本</a>
     {% if m.subject == 'chinese' %}
-    <a class="btn ghost" href="subject/chinese">回语文空间</a>
+    <a class="btn ghost" href="{{ R }}subject/chinese">回语文空间</a>
     {% else %}
-    <form method="post" action="practice_start" class="inline-form">
+    <form method="post" action="{{ R }}practice_start" class="inline-form">
       <input type="hidden" name="mode" value="weak">
       <input type="hidden" name="count" value="5">
       <button class="btn" type="submit">针对该弱点再练 5 题</button>
     </form>
-    <a class="btn ghost" href="thinking">🧠 去做思维训练</a>
+    <a class="btn ghost" href="{{ R }}thinking">🧠 去做思维训练</a>
     {% endif %}
   </div>
 </div>
@@ -87,7 +87,7 @@
     pending.style.display = '';
     var fd = new FormData();
     fd.append('id', '{{ m.id }}');
-    fetch('ai_solve', { method: 'POST', body: fd })
+    fetch((window.APP_ROOT || '') + 'ai_solve', { method: 'POST', body: fd })
       .then(function (r) { return r.json(); })
       .then(function (d) {
         pending.style.display = 'none';

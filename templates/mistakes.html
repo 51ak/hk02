@@ -3,12 +3,12 @@
 {% block content %}
 <div class="card">
   <h2>录入错题</h2>
-  <form method="post" action="save_mistake" class="form-grid" enctype="multipart/form-data" id="mistakeForm">
+  <form method="post" action="{{ R }}save_mistake" class="form-grid" enctype="multipart/form-data" id="mistakeForm">
     <label class="wide photo-field">
       拍照 / 上传题目图片（自动分区识别）
       <input type="file" name="photo" id="photoInput" accept="image/*" capture="environment">
       <span class="tiny" id="ocrStatus">选图后自动识别：印刷原题 / 手写作答 / 红笔订正 分开填入下方三个框（可修改）；原图永久保留。
-        {% if prefill_photo %}已带入作图板的图，可继续拍照替换或直接填写文字{% else %}没有照片？<a href="draw">📐 打开几何作图板</a>自己画{% endif %}</span>
+        {% if prefill_photo %}已带入作图板的图，可继续拍照替换或直接填写文字{% else %}没有照片？<a href="{{ R }}draw">📐 打开几何作图板</a>自己画{% endif %}</span>
       <img id="photoPreview" class="photo-preview" style="display:none" alt="题目预览">
       <input type="hidden" name="photo_name" id="photoName" value="{{ prefill_photo }}">
     </label>
@@ -60,13 +60,13 @@
 <div class="card">
   <h2>错题列表</h2>
   <div class="filters">
-    <a href="mistakes?status=active{{ '&cause=' + cause if cause }}" class="{{ 'on' if status == 'active' }}">待巩固 {{ '(' + (rows | selectattr('status', 'equalto', 'active') | list | length | string) + ')' if status == 'active' else '' }}</a>
-    <a href="mistakes?status=mastered{{ '&cause=' + cause if cause }}" class="{{ 'on' if status == 'mastered' }}">已毕业 {{ '(' + (rows | selectattr('status', 'equalto', 'mastered') | list | length | string) + ')' if status == 'mastered' else '' }}</a>
-    <a href="mistakes?status=all{{ '&cause=' + cause if cause }}" class="{{ 'on' if status == 'all' }}">全部</a>
+    <a href="{{ R }}mistakes?status=active{{ '&cause=' + cause if cause }}" class="{{ 'on' if status == 'active' }}">待巩固 {{ '(' + (rows | selectattr('status', 'equalto', 'active') | list | length | string) + ')' if status == 'active' else '' }}</a>
+    <a href="{{ R }}mistakes?status=mastered{{ '&cause=' + cause if cause }}" class="{{ 'on' if status == 'mastered' }}">已毕业 {{ '(' + (rows | selectattr('status', 'equalto', 'mastered') | list | length | string) + ')' if status == 'mastered' else '' }}</a>
+    <a href="{{ R }}mistakes?status=all{{ '&cause=' + cause if cause }}" class="{{ 'on' if status == 'all' }}">全部</a>
     <span class="sep">|</span>
-    <a href="mistakes?status={{ status }}" class="{{ 'on' if not cause }}">全部原因</a>
+    <a href="{{ R }}mistakes?status={{ status }}" class="{{ 'on' if not cause }}">全部原因</a>
     {% for c in causes %}
-    <a href="mistakes?status={{ status }}&cause={{ c }}" class="{{ 'on' if cause == c }}">{{ c }}</a>
+    <a href="{{ R }}mistakes?status={{ status }}&cause={{ c }}" class="{{ 'on' if cause == c }}">{{ c }}</a>
     {% endfor %}
   </div>
   {% if rows %}
@@ -80,20 +80,20 @@
         {% if r.status == 'mastered' %}<span class="badge ok">已毕业</span>{% endif %}
       </div>
       <p class="m-title">{{ r.title }}</p>
-      {% if r.photo %}<a class="photo-link" href="photo/{{ r.photo }}" target="_blank">🖼 查看题目原图（含几何图形）</a>{% endif %}
+      {% if r.photo %}<a class="photo-link" href="{{ R }}photo/{{ r.photo }}" target="_blank">🖼 查看题目原图（含几何图形）</a>{% endif %}
       {% if r.answer %}<details><summary>✍️ 我当时的作答（手写识别）</summary><p class="m-answer mine">{{ r.answer }}</p></details>{% endif %}
       {% if r.correction %}<details><summary>🔴 红笔订正（识别）</summary><p class="m-answer corr">{{ r.correction }}</p></details>{% endif %}
       {% if r.logic_type %}<p class="logic-tag">逻辑缺陷：{{ r.logic_type }} — {{ logic_types.get(r.logic_type, '') }}</p>{% endif %}
       {% if r.ai_answer %}<details><summary>✅ AI 精讲（{{ '考察点与标准答案' if r.subject == 'chinese' else '正确答案与解答' }}）</summary><p class="m-answer">{{ r.ai_answer }}</p></details>{% endif %}
       {% if r.ai_analysis %}<details><summary>🔍 AI {{ '答案对比' if r.subject == 'chinese' else '错因深度分析' }}</summary><p class="m-answer ai">{{ r.ai_analysis }}</p></details>{% endif %}
       {% if r.ai_advice %}<details><summary>🧠 AI 思维训练建议</summary><p class="m-answer advice">{{ r.ai_advice }}</p></details>{% endif %}
-      {% if not r.ai_answer %}<a class="btn ghost sm" href="solve?id={{ r.id }}">生成 AI 解答与分析</a>{% endif %}
+      {% if not r.ai_answer %}<a class="btn ghost sm" href="{{ R }}solve?id={{ r.id }}">生成 AI 解答与分析</a>{% endif %}
       <div class="m-meta">
         <span>难度 {{ '★' * r.diff }}</span>
         {% if r.source %}<span>出处：{{ r.source }}</span>{% endif %}
         <span>已复习 {{ r.reviews }} 次</span>
         {% if r.status == 'active' %}<span>下次复习：{{ r.next_review }}</span>{% endif %}
-        <form method="post" action="delete_mistake" class="inline-form" onsubmit="return confirm('确定删除这道错题？')">
+        <form method="post" action="{{ R }}delete_mistake" class="inline-form" onsubmit="return confirm('确定删除这道错题？')">
           <input type="hidden" name="id" value="{{ r.id }}">
           <button class="link-btn" type="submit">删除</button>
         </form>

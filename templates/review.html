@@ -9,7 +9,7 @@
     <span class="badge">{{ item.cause }}</span>
   </div>
   <p class="review-title">{{ item.title }}</p>
-  {% if item.photo %}<a class="photo-link" href="photo/{{ item.photo }}" target="_blank">🖼 查看题目原图（含几何图形）</a>{% endif %}
+  {% if item.photo %}<a class="photo-link" href="{{ R }}photo/{{ item.photo }}" target="_blank">🖼 查看题目原图（含几何图形）</a>{% endif %}
   {% if item.answer %}<p class="tiny seg-mine-t">✍️ 我当时的作答：{{ item.answer }}</p>{% endif %}
   {% if item.correction %}<p class="tiny seg-corr-t">🔴 红笔订正：{{ item.correction }}</p>{% endif %}
   {% if item.logic_type %}<p class="logic-tag">逻辑缺陷：{{ item.logic_type }}</p>{% endif %}
@@ -24,17 +24,17 @@
   </details>
   <p class="tiny center">诚实自评效果最好——检索练习的核心就是“先努力回想”。</p>
   <div class="grade-btns">
-    <form method="post" action="review_answer" class="inline-form">
+    <form method="post" action="{{ R }}review_answer" class="inline-form">
       <input type="hidden" name="id" value="{{ item.id }}">
       <input type="hidden" name="result" value="0">
       <button class="btn bad-btn" type="submit">又错了</button>
     </form>
-    <form method="post" action="review_answer" class="inline-form">
+    <form method="post" action="{{ R }}review_answer" class="inline-form">
       <input type="hidden" name="id" value="{{ item.id }}">
       <input type="hidden" name="result" value="0.5">
       <button class="btn warn-btn" type="submit">记模糊</button>
     </form>
-    <form method="post" action="review_answer" class="inline-form">
+    <form method="post" action="{{ R }}review_answer" class="inline-form">
       <input type="hidden" name="id" value="{{ item.id }}">
       <input type="hidden" name="result" value="1">
       <button class="btn good-btn" type="submit">记住了</button>
@@ -46,7 +46,7 @@
   <p class="big-ok">🎉</p>
   <h2>今日复习已清零</h2>
   <p>今日已复习 {{ done_today }} 题。错题会在遗忘临界点自动回到队列，坚持每天清零效果最佳。</p>
-  <a class="btn" href="practice">去做一组练习</a>
+  <a class="btn" href="{{ R }}practice">去做一组练习</a>
 </div>
 {% endif %}
 {% endblock %}

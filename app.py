@@ -9,6 +9,7 @@ import urllib.request
 from datetime import date, datetime, timedelta
 
 from flask import Flask, abort, g, jsonify, redirect, render_template, request, send_from_directory, session
+from werkzeug.middleware.proxy_fix import ProxyFix
 from werkzeug.security import check_password_hash, generate_password_hash
 from werkzeug.utils import secure_filename
 
@@ -24,6 +25,7 @@ PHOTO_EXTS = {".jpg", ".jpeg", ".png", ".webp", ".gif", ".bmp"}
 app = Flask(__name__)
 app.config["MAX_CONTENT_LENGTH"] = 16 * 1024 * 1024
 app.config["TEMPLATES_AUTO_RELOAD"] = True
+app.wsgi_app = ProxyFix(app.wsgi_app, x_prefix=1)
 
 CAUSES = ["概念不清", "方法不会", "逻辑思维", "审题失误", "计算错误", "粗心大意", "其他"]
 CAUSE_HIT = {"概念不清": 15, "方法不会": 12, "逻辑思维": 12, "审题失误": 8, "计算错误": 6, "粗心大意": 6, "其他": 5}
@@ -685,8 +687,9 @@ _TAB_BY_PATH = {"dashboard": "hub", "practice": "practice", "quiz": "practice", 
 
 
 def subject_shell():
+    root = (request.script_root + "/") if request.script_root else "/"
     seg = request.path.strip("/").split("/")
-    if not seg[0] or seg[0] not in _TAB_BY_PATH and seg[0] != "subject":
+    if not seg[0] or (seg[0] not in _TAB_BY_PATH and seg[0] != "subject"):
         return None
     if seg[0] == "subject":
         if len(seg) < 2 or seg[1] not in seed_data.SUBJECTS:
@@ -698,38 +701,37 @@ def subject_shell():
         if code not in seed_data.SUBJECTS:
             code = "math"
         tab = _TAB_BY_PATH.get(seg[0], "hub")
-    segs = [s for s in request.path.strip("/").split("/") if s]
     if code == "math":
         tabs = [
-            ("hub", "总览", rel("dashboard")),
-            ("practice", "练习", rel("practice")),
-            ("mistakes", "错题本", rel(f"mistakes?subject=math")),
-            ("review", "复习", rel("review?subject=math")),
-            ("mastery", "掌握度", rel("mastery")),
-            ("scores", "成绩", rel("scores")),
-            ("plan", "计划", rel("plan")),
-            ("report", "报告", rel("report")),
+            ("hub", "总览", root + "dashboard"),
+            ("practice", "练习", root + "practice"),
+            ("mistakes", "错题本", root + "mistakes?subject=math"),
+            ("review", "复习", root + "review?subject=math"),
+            ("mastery", "掌握度", root + "mastery"),
+            ("scores", "成绩", root + "scores"),
+            ("plan", "计划", root + "plan"),
+            ("report", "报告", root + "report"),
         ]
     else:
-        within = max(len(segs) - 2, 0)
-        back = "../" * within if within else "./"
+        base = root + "subject/" + code
         tabs = [
-            ("hub", "总览", back),
-            ("practice", "练习", back + "practice"),
-            ("mistakes", "错题本", rel(f"mistakes?subject={code}")),
-            ("review", "复习", rel(f"review?subject={code}")),
-            ("mastery", "掌握度", back + "mastery"),
-            ("scores", "成绩", back + "scores"),
-            ("report", "报告", back + "report"),
+            ("hub", "总览", base),
+            ("practice", "练习", base + "/practice"),
+            ("mistakes", "错题本", root + "mistakes?subject=" + code),
+            ("review", "复习", root + "review?subject=" + code),
+            ("mastery", "掌握度", base + "/mastery"),
+            ("scores", "成绩", base + "/scores"),
+            ("report", "报告", base + "/report"),
         ]
     return {"code": code, "meta": seed_data.SUBJECTS[code], "tab": tab, "tabs": tabs}
 
 
 def rel(path):
     segs = [s for s in request.path.strip("/").split("/") if s]
-    if not segs:
+    ups = max(len(segs) - 1, 0)
+    if not ups:
         return path if path else "./"
-    return ("../" * len(segs)) + (path if not path.endswith("?") else path[:-1])
+    return ("../" * ups) + (path if path else "")
 
 
 @app.context_processor
@@ -751,8 +753,8 @@ def inject_common():
         "subjects": seed_data.SUBJECTS,
         "kind_labels": seed_data.ASSESS_KIND_LABEL,
         "sb": subject_shell(),
-        "rel": rel,
-        "home_url": ("../" * len(segs)) if segs else "./",
+        "R": (request.script_root + "/") if request.script_root else "/",
+        "home_url": (request.script_root + "/") if request.script_root else "/",
     }
 
 

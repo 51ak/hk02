@@ -9,8 +9,8 @@
   {% set wrong = results | selectattr('result', 'equalto', 0) | list | length %}
   <p class="summary-line">独立想出 <b class="good">{{ right }}</b> · 有启发 <b class="warn">{{ half }}</b> · 没想到 <b class="bad">{{ wrong }}</b></p>
   <div class="btn-row">
-    <a class="btn" href="thinking">再来一组</a>
-    <a class="btn ghost" href="dashboard">回仪表盘</a>
+    <a class="btn" href="{{ R }}thinking">再来一组</a>
+    <a class="btn ghost" href="{{ R }}dashboard">回仪表盘</a>
   </div>
 </div>
 {% else %}
@@ -25,17 +25,17 @@
   </details>
   <p class="tiny center">评价标准：能否独立推出/想到，而不是看懂答案。</p>
   <div class="grade-btns">
-    <form method="post" action="puzzle_answer" class="inline-form">
+    <form method="post" action="{{ R }}puzzle_answer" class="inline-form">
       <input type="hidden" name="id" value="{{ item.id }}">
       <input type="hidden" name="result" value="0">
       <button class="btn bad-btn" type="submit">没想到</button>
     </form>
-    <form method="post" action="puzzle_answer" class="inline-form">
+    <form method="post" action="{{ R }}puzzle_answer" class="inline-form">
       <input type="hidden" name="id" value="{{ item.id }}">
       <input type="hidden" name="result" value="0.5">
       <button class="btn warn-btn" type="submit">有启发</button>
     </form>
-    <form method="post" action="puzzle_answer" class="inline-form">
+    <form method="post" action="{{ R }}puzzle_answer" class="inline-form">
       <input type="hidden" name="id" value="{{ item.id }}">
       <input type="hidden" name="result" value="1">
       <button class="btn good-btn" type="submit">想出来了</button>

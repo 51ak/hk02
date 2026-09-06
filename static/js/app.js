@@ -25,7 +25,7 @@
       status.textContent = '正在分区识别（印刷原题 / 手写作答 / 红笔订正）… 约 10~30 秒';
       var fd = new FormData();
       fd.append('photo', f);
-      fetch('ocr', { method: 'POST', body: fd })
+      fetch((window.APP_ROOT || '') + 'ocr', { method: 'POST', body: fd })
         .then(function (r) { return r.json(); })
         .then(function (d) {
           if (d.photo && photoName) photoName.value = d.photo;

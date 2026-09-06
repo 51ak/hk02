@@ -57,7 +57,7 @@
     </div>
     {% endfor %}
   </div>
-  <a class="btn ghost sm" href="{{ rel('mistakes?subject=' ~ code ~ '&status=all') }}">查看全部错题 →</a>
+  <a class="btn ghost sm" href="{{ R }}mistakes?subject={{ code }}&status=all">查看全部错题 →</a>
 </div>
 {% endif %}
 
@@ -73,7 +73,7 @@
   {% else %}
   <p class="empty">还没有 AI 分析。建议先做一次学科摸底，或直接生成报告。</p>
   {% endif %}
-  <form method="post" action="{{ rel('gen_report') }}" class="ai-gen-form">
+  <form method="post" action="{{ R }}subject/{{ code }}/gen_report" class="ai-gen-form">
     <button class="btn" type="submit">{{ '重新生成最新报告' if latest else '生成 AI 报告与四周方案' }}</button>
     <span class="tiny">约需 10~30 秒，基于掌握度 / 错因 / 成绩 / 测评数据</span>
   </form>

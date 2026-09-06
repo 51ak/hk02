@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>登录 · {{ site_name }}</title>
-<link rel="stylesheet" href="static/css/style.css">
+<link rel="stylesheet" href="{{ R }}static/css/style.css">
 </head>
 <body class="login-body">
 <div class="login-card">
@@ -14,7 +14,7 @@
   <p class="hint">首次使用，请设置一个管理密码（至少 4 位）</p>
   {% endif %}
   {% if error %}<p class="alert">{{ error }}</p>{% endif %}
-  <form method="post" action="login">
+  <form method="post" action="{{ R }}login">
     <input type="password" name="pw" placeholder="{{ '请输入密码' if pw_set else '设置密码' }}" autofocus required>
     <button type="submit">{{ '登录' if pw_set else '保存并进入' }}</button>
   </form>
