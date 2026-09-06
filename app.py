@@ -698,35 +698,74 @@ def ai_solve_form():
     return redirect("solve?id=" + str(mid))
 
 
-def vision_split(photo_path):
-    with open(photo_path, "rb") as f:
-        b64 = base64.b64encode(f.read()).decode()
-    prompt = (
-        "你是专业的试卷识别助手。请把图片内容按三类分开转录：\n"
-        "1) original——印刷体题目文字（原题，黑色印刷）；\n"
-        "2) mine——学生手写作答（蓝色或黑色手写笔迹，含草稿演算）；\n"
-        "3) correction——订正/批改内容（红色笔迹、对勾叉号旁的改正等）。\n"
-        '只输出一个JSON：{"original":"...","mine":"...","correction":"..."}，'
-        "没有的类别留空字符串；每类文字按阅读顺序排列，换行用\\n；"
-        "数学式尽量按原样保留（如分数写为 a/b，根号写为√）；识别不确定的字用？标注。"
-    )
-    content, err = ai_chat([
-        {"role": "system", "content": "你是一个精确的OCR转录引擎，只输出JSON。"},
-        {"role": "user", "content": [
-            {"type": "text", "text": prompt},
-            {"type": "image_url", "image_url": {"url": "data:image/png;base64," + b64}},
-        ]},
-    ], max_tokens=2000)
-    if err:
-        return None, err
+def _shrink_for_vision(photo_path):
+    tmp = os.path.join("/tmp", "hk02_shrink_" + secrets.token_hex(6) + ".jpg")
     try:
-        text = content.strip()
-        text = re.sub(r"^```(json)?|```$", "", text.strip(), flags=re.MULTILINE).strip()
-        start, end = text.find("{"), text.rfind("}")
-        obj = json.loads(text[start:end + 1])
-        return {k: str(obj.get(k, "")).strip() for k in ("original", "mine", "correction")}, None
+        from PIL import Image
+        import io
+        img = Image.open(photo_path)
+        if img.mode != "RGB":
+            img = img.convert("RGB")
+        w, h = img.size
+        if max(w, h) <= 1400 and os.path.getsize(photo_path) < 300 * 1024:
+            return photo_path, None
+        img.thumbnail((1400, 1400))
+        buf = io.BytesIO()
+        img.save(buf, "JPEG", quality=88)
+        with open(tmp, "wb") as f:
+            f.write(buf.getvalue())
+        return tmp, tmp
     except Exception:
-        return None, "视觉识别返回异常"
+        return photo_path, None
+
+
+def vision_split(photo_path):
+    path, tmp = _shrink_for_vision(photo_path)
+    try:
+        with open(path, "rb") as f:
+            b64 = base64.b64encode(f.read()).decode()
+        prompt = (
+            "你是专业的试卷识别助手。请把图片内容按三类分开转录：\n"
+            "1) original——印刷体题目文字（原题，黑色印刷）；\n"
+            "2) mine——学生手写作答（蓝色或黑色手写笔迹，含草稿演算）；\n"
+            "3) correction——订正/批改内容（红色笔迹、对勾叉号旁的改正等）。\n"
+            '只输出一个JSON：{"original":"...","mine":"...","correction":"..."}，'
+            "没有的类别留空字符串；每类文字按阅读顺序排列，换行用\\n；"
+            "数学式尽量按原样保留（如分数写为 a/b，根号写为√）；识别不确定的字用？标注。"
+        )
+        last_err = None
+        for attempt in range(2):
+            content, err = ai_chat([
+                {"role": "system", "content": "你是一个精确的OCR转录引擎，只输出JSON。"},
+                {"role": "user", "content": [
+                    {"type": "text", "text": prompt},
+                    {"type": "image_url", "image_url": {"url": "data:image/jpeg;base64," + b64}},
+                ]},
+            ], max_tokens=3000)
+            if err:
+                last_err = err
+                continue
+            if not content or not content.strip():
+                last_err = "模型返回空内容"
+                continue
+            try:
+                text = content.strip()
+                text = re.sub(r"^```(json)?|```$", "", text.strip(), flags=re.MULTILINE).strip()
+                start, end = text.find("{"), text.rfind("}")
+                obj = json.loads(text[start:end + 1])
+                parts = {k: str(obj.get(k, "")).strip() for k in ("original", "mine", "correction")}
+                if parts["original"] or parts["mine"] or parts["correction"]:
+                    return parts, None
+                last_err = "三区内容均为空"
+            except Exception:
+                last_err = "视觉识别返回异常"
+        return None, last_err
+    finally:
+        if tmp:
+            try:
+                os.remove(tmp)
+            except OSError:
+                pass
 
 
 def ocr_plain(photo_path):
@@ -752,8 +791,10 @@ def ocr():
         return jsonify({"ok": False, "msg": "图片保存失败"})
     path = os.path.join(PHOTO_DIR, name)
     parts, err = vision_split(path)
-    if parts and (parts["original"] or parts["mine"] or parts["correction"]):
+    if parts:
         return jsonify({"ok": True, "mode": "vision", "photo": name, **parts})
+    if err:
+        print(f"[ocr] vision failed, fallback to plain: {err}", flush=True)
     fallback = ocr_plain(path)
     if fallback:
         return jsonify({"ok": True, "mode": "plain", "photo": name,
