@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+{% block title %}Boss 战进行中 · {{ site_name }}{% endblock %}
+{% block content %}
+<div class="card quiz-card boss-live">
+  <div class="boss-timer">
+    <div class="bt-bar"><i id="timerBar" data-left="{{ left }}"></i></div>
+    <span id="timerNum" class="bt-num">{{ left }}s</span>
+  </div>
+  <div class="boss-hud">
+    <span>第 {{ i + 1 }} 题</span>
+    <span>答对 <b class="good">{{ score }}</b></span>
+    <form method="post" action="challenge_finish" class="inline-form">
+      <button class="link-btn" type="submit">提前结束</button>
+    </form>
+  </div>
+  <p class="quiz-title">{{ item.text }}</p>
+  <details class="review-answer">
+    <summary>心算后点开核对</summary>
+    <p class="m-answer">{{ item.answer }}</p>
+  </details>
+  <div class="grade-btns">
+    <form method="post" action="challenge_answer" class="inline-form">
+      <input type="hidden" name="result" value="1">
+      <button class="btn good-btn" type="submit">会 ✓</button>
+    </form>
+    <form method="post" action="challenge_answer" class="inline-form">
+      <input type="hidden" name="result" value="0">
+      <button class="btn bad-btn" type="submit">不会 ✗</button>
+    </form>
+  </div>
+</div>
+<script>
+(function () {
+  var bar = document.getElementById('timerBar');
+  var num = document.getElementById('timerNum');
+  var left = parseFloat(bar.dataset.left) || 0;
+  var total = 75;
+  function tick() {
+    if (left <= 0) {
+      window.location.href = (window.APP_ROOT || '') + 'challenge_finish';
+      return;
+    }
+    num.textContent = Math.ceil(left) + 's';
+    bar.style.width = Math.max(0, Math.min(100, left * 100 / total)) + '%';
+    left -= 0.25;
+    setTimeout(tick, 250);
+  }
+  tick();
+})();
+</script>
+{% endblock %}

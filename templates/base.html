@@ -10,8 +10,13 @@
 <header class="topbar">
   <div class="wrap bar-in">
     <a class="brand" href="{{ R }}"><span class="brand-mark">🎓</span>{{ site_name }}</a>
-    <span class="pill">{{ student_name }} · {{ region }}</span>
-    {% if exam_days is not none and exam_days > 0 %}<span class="pill warn">距考试 {{ exam_days }} 天</span>{% endif %}
+    {% if xp_lv %}
+    <a class="lvl-badge" href="{{ R }}badges" title="{{ xp_lv[1] }}">
+      <b>Lv.{{ xp_lv[0] }}</b><span class="lvl-t">{{ xp_lv[1] }}</span>
+      <span class="lvl-bar"><i style="width: {{ xp_lv[2] }}%"></i></span>
+    </a>
+    <span class="pill flame {{ '' if streak_n else 'off' }}" title="连续学习天数">🔥 {{ streak_n }} 天</span>
+    {% endif %}
     <a class="logout" href="{{ R }}logout">退出</a>
   </div>
 </header>
@@ -54,7 +59,45 @@
   <p class="foot-links"><a href="{{ R }}weekly">家长周报</a> · <a href="{{ R }}draw">几何作图</a> · <a href="{{ R }}ceping">摸底测评</a></p>
 </footer>
 <script>window.APP_ROOT = "{{ R }}";</script>
-<script src="{{ R }}static/js/app.js?v=2.4.0"></script>
+<script src="{{ R }}static/js/app.js?v=3.0.0"></script>
+<script>
+(function () {
+  var q = new URLSearchParams(location.search);
+  var gx = q.get('gx'), lv = q.get('lv');
+  if (gx || lv) {
+    history.replaceState(null, '', location.pathname + (q.get('id') ? '?id=' + q.get('id') : ''));
+  }
+  if (gx) {
+    var t = document.createElement('div');
+    t.className = 'xp-toast';
+    t.textContent = '+ ' + gx + ' XP';
+    document.body.appendChild(t);
+    setTimeout(function () { t.classList.add('show'); }, 30);
+    setTimeout(function () { t.classList.remove('show'); }, 2300);
+    setTimeout(function () { t.remove(); }, 2900);
+  }
+  if (lv) {
+    var pop = document.createElement('div');
+    pop.className = 'lvl-pop';
+    pop.innerHTML = '<b>🎉 升级！Lv.' + parseInt(lv) + '</b><span>继续加油，小马在长大</span>';
+    document.body.appendChild(pop);
+    for (var i = 0; i < 40; i++) {
+      (function (n) {
+        var c = document.createElement('i');
+        c.className = 'confetti';
+        c.style.left = Math.random() * 100 + 'vw';
+        c.style.background = ['#9a7bff', '#f5b45e', '#f284ab', '#54c49c', '#64c4da'][n % 5];
+        c.style.animationDelay = (Math.random() * 0.6) + 's';
+        c.style.animationDuration = (1.6 + Math.random() * 1.2) + 's';
+        document.body.appendChild(c);
+        setTimeout(function () { c.remove(); }, 3600);
+      })(i);
+    }
+    setTimeout(function () { pop.classList.add('show'); }, 200);
+    setTimeout(function () { pop.classList.remove('show'); }, 3600);
+  }
+})();
+</script>
 {% block scripts %}{% endblock %}
 </body>
 </html>

@@ -515,6 +515,14 @@ def init_db():
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             kind TEXT NOT NULL, item_key TEXT NOT NULL, result REAL, created TEXT
         );
+        CREATE TABLE IF NOT EXISTS xp_log (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            points INTEGER NOT NULL, reason TEXT DEFAULT '', created TEXT
+        );
+        CREATE TABLE IF NOT EXISTS challenge_log (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            score INTEGER, total INTEGER, created TEXT
+        );
         """
     )
     db.commit()
@@ -875,7 +883,92 @@ def inject_common():
         "sb": subject_shell(),
         "R": (request.script_root + "/") if request.script_root else "/",
         "home_url": (request.script_root + "/") if request.script_root else "/",
+        "xp_lv": None if request.path == "/login" else xp_level(xp_total()),
+        "streak_n": None if request.path == "/login" else streak_days(),
+        "pony_name": cfg("pony_name", "奶糖"),
+        "xp_today": (q1("SELECT COALESCE(SUM(points),0) s FROM xp_log WHERE created LIKE ?", (today_iso() + "%",))["s"] or 0) if request.path != "/login" else 0,
     }
+
+
+LEVEL_TITLES = ["见习骑手", "小骑士", "青铜骑士", "白银骑士", "黄金骑士", "铂金骑手",
+                "钻石骑手", "大师骑手", "宗师骑手", "传奇骑手"]
+
+PONY_STAGES = [
+    (0, "🐴", "小马驹"),
+    (3, "🐎", "活力小马"),
+    (5, "🐎✨", "银鞍骏马"),
+    (7, "🌟🐎", "星辉千里马"),
+    (10, "🦄", "传奇独角兽"),
+]
+
+STORY_THEMES = {
+    "regatta": {"name": "赛艇冠军之路", "icon": "🚣", "c1": "#2396b5", "c2": "#64c4da",
+                "desc": "风浪、对手与默契——用数学与逻辑赢下每一桨"},
+    "equest": {"name": "马术学院之谜", "icon": "🏇", "c1": "#a9742f", "c2": "#d0a26c",
+               "desc": "老马场的秘密契约，解开谜题保住心爱的小马"},
+    "piano": {"name": "月光钢琴城堡", "icon": "🎹", "c1": "#6d5ae0", "c2": "#9a7bff",
+              "desc": "每一段乐章藏着一道谜题，唤醒沉睡的音乐厅"},
+    "campus": {"name": "校园特工队", "icon": "🕵", "c1": "#e0457a", "c2": "#f284ab",
+               "desc": "全科知识就是你的装备，完成特工任务"},
+}
+
+
+def story_state():
+    try:
+        return json.loads(cfg("story_state", "{}"))
+    except Exception:
+        return {}
+
+
+def level_threshold(n):
+    return 100 * n * (n + 1) // 2
+
+
+def xp_level(xp):
+    lv = 0
+    n = 1
+    while n <= 30 and xp >= level_threshold(n):
+        lv = n
+        n += 1
+    cur = level_threshold(lv)
+    nxt = level_threshold(lv + 1)
+    pct = int((xp - cur) * 100 / (nxt - cur)) if nxt > cur else 0
+    title = LEVEL_TITLES[min(lv, len(LEVEL_TITLES) - 1)]
+    return lv, title, pct, nxt - xp
+
+
+def xp_total():
+    return int(q1("SELECT COALESCE(SUM(points),0) s FROM xp_log")["s"])
+
+
+def streak_days():
+    days = {r["d"] for r in q("SELECT DISTINCT substr(created,1,10) d FROM xp_log")}
+    n = 0
+    d = date.today()
+    if today_iso() not in days:
+        d = d - timedelta(days=1)
+    while d.isoformat() in days:
+        n += 1
+        d = d - timedelta(days=1)
+    return n
+
+
+def add_xp(points, reason=""):
+    run("INSERT INTO xp_log (points, reason, created) VALUES (?,?,?)", (points, reason[:60], now_iso()))
+    lv, _, _, _ = xp_level(xp_total())
+    old = int(cfg("last_level", "0") or 0)
+    leveled = lv > old
+    if leveled:
+        set_cfg("last_level", str(lv))
+    return leveled, lv
+
+
+def pony_stage(lv):
+    icon, name = PONY_STAGES[0][1], PONY_STAGES[0][2]
+    for minlv, ic, nm in PONY_STAGES:
+        if lv >= minlv:
+            icon, name = ic, nm
+    return icon, name
 
 
 def textbooks():
@@ -1080,7 +1173,8 @@ def save_mistake():
     )
     apply_penalty(kp_id, cause)
     mid = q1("SELECT last_insert_rowid() id")["id"]
-    return redirect("solve?id=" + str(mid))
+    leveled, lv = add_xp(5, "录入错题")
+    return redirect("solve?id=" + str(mid) + "&gx=5" + (f"&lv={lv}" if leveled else ""))
 
 
 @app.route("/solve")
@@ -1294,7 +1388,9 @@ def review_answer():
     if m and result in (0, 0.5, 1):
         sm2_update(m, result)
         update_mastery(m["kp_id"], result)
-        return redirect("review?subject=" + kp_subject(m["kp_id"]))
+        leveled, lv = add_xp(8, "复习错题")
+        url = "review?subject=" + kp_subject(m["kp_id"]) + "&gx=8" + (f"&lv={lv}" if leveled else "")
+        return redirect(url)
     return redirect("review")
 
 
@@ -1438,6 +1534,160 @@ def subject_skills(code):
     return render_template("skills.html", code=code, meta=meta, groups=groups)
 
 
+@app.route("/story")
+def story_page():
+    st = story_state()
+    themes = []
+    for code, meta in STORY_THEMES.items():
+        entry = st.get(code, {})
+        themes.append({**meta, "code": code, "chapter": entry.get("chapter", 0),
+                       "summary": entry.get("summary", "")})
+    total_ch = sum(t["chapter"] for t in themes)
+    return render_template("story.html", themes=themes, total_ch=total_ch)
+
+
+@app.route("/story_start", methods=["POST"])
+def story_start():
+    theme = request.form.get("theme", "")
+    if theme not in STORY_THEMES:
+        abort(400)
+    meta = STORY_THEMES[theme]
+    st = story_state()
+    entry = st.get(theme, {})
+    ch = entry.get("chapter", 0) + 1
+    summary = entry.get("summary", "")
+    ask = (
+        f"{profile_text()}\n请为她创作互动学习冒险《{meta['name']}》第 {ch} 章。\n"
+        + (f"上一章结局梗概（要衔接）：{summary}\n" if summary else "这是第一章：交代背景、目标与悬念钩子。\n")
+        + "输出结构：剧情引子（80~120字，扣人心弦，场景结合她的兴趣）→ 3 道由剧情自然引出的题目"
+        "（覆盖数学/逻辑推理/学科常识，难度中等，题干带剧情情境）→ 每题参考答案。\n"
+        '只输出JSON：{"title":"章节标题","intro":"剧情引子","questions":[{"text":"题干","ref":"参考答案"}×3]}'
+    )
+    content, err = ai_chat([
+        {"role": "system", "content": "你是青少年互动小说作家兼命题专家，剧情生动、题目巧妙。只输出JSON。"},
+        {"role": "user", "content": ask},
+    ], max_tokens=3500)
+    qs, title, intro = None, "", ""
+    if not err and content:
+        try:
+            text = re.sub(r"^```(json)?|```$", "", content.strip(), flags=re.MULTILINE).strip()
+            start, end = text.find("{"), text.rfind("}")
+            obj = json.loads(text[start:end + 1])
+            title = str(obj.get("title", f"第{ch}章"))
+            intro = str(obj.get("intro", ""))
+            qs = [{"text": str(it.get("text", "")), "ref": str(it.get("ref", "")), "board": "剧情"}
+                  for it in obj.get("questions", []) if it.get("text")][:5]
+        except Exception:
+            qs = None
+    if not qs or len(qs) < 2:
+        return render_template("story.html", themes=[], total_ch=0,
+                               error="剧情生成失败（AI 繁忙），稍后再试一次")
+    run("INSERT INTO assessments (subject, kind, questions, answers, created) VALUES (?,?,?,?,?)",
+        ("story:" + theme, "story", json.dumps(qs, ensure_ascii=False),
+         json.dumps({"title": title, "intro": intro}, ensure_ascii=False), now_iso()))
+    aid = q1("SELECT last_insert_rowid() id")["id"]
+    return redirect("ceping_do?id=" + str(aid))
+
+
+def badges_data():
+    xpn = xp_total()
+    lv = xp_level(xpn)[0]
+    stk = streak_days()
+    rows = []
+
+    def cnt(sql, *a):
+        return q1(sql, a)["c"] or 0
+    items = [
+        ("🌱", "初试身手", "完成首次 AI 摸底", cnt("SELECT COUNT(*) c FROM assessments WHERE done=1"), 1),
+        ("📖", "错题猎人", "累计录入 10 道错题", cnt("SELECT COUNT(*) c FROM mistakes"), 10),
+        ("🔥", "三日之约", "连续学习 3 天", stk, 3),
+        ("🔥", "七连胜火", "连续学习 7 天", stk, 7),
+        ("🧠", "思维大师", "思维训练累计 50 题", cnt("SELECT COUNT(*) c FROM thinking_log"), 50),
+        ("♻️", "复习达人", "完成 100 次错题复习", cnt("SELECT COUNT(*) c FROM reviews_done"), 100),
+        ("🏹", "百步穿杨", "智能练习累计 100 题次", cnt("SELECT COUNT(*) c FROM practice_log"), 100),
+        ("🏇", "小马成长", "等级达到 5 级", lv, 5),
+        ("🦄", "传奇骑手", "等级达到 10 级", lv, 10),
+        ("🗺", "冒险小说家", "剧情冒险完成 5 章", sum(t.get("chapter", 0) for t in story_state().values()), 5),
+        ("⚡", "极速挑战者", "Boss 战单局答对 ≥15 题", cnt("SELECT COALESCE(MAX(score),0) c FROM challenge_log"), 15),
+        ("🧰", "工具达人", "知识卡片自测 60 次", cnt("SELECT COUNT(*) c FROM tools_log"), 60),
+    ]
+    for icon, name, desc, cur, target in items:
+        rows.append({"icon": icon, "name": name, "desc": desc, "cur": min(cur, target),
+                     "target": target, "done": cur >= target,
+                     "pct": min(100, int(cur * 100 / target)) if target else 100})
+    return rows
+
+
+@app.route("/badges")
+def badges():
+    rows = badges_data()
+    return render_template("badges.html", rows=rows, got=sum(1 for r in rows if r["done"]))
+
+
+@app.route("/challenge")
+def challenge():
+    best = q1("SELECT COALESCE(MAX(score),0) b FROM challenge_log")["b"]
+    history = q("SELECT * FROM challenge_log ORDER BY id DESC LIMIT 8")
+    return render_template("challenge.html", best=best, history=history,
+                           conf=request.args.get("done", ""))
+
+
+@app.route("/challenge_start", methods=["POST"])
+def challenge_start():
+    stage = cfg("stage", "cj")
+    rows = q("""SELECT qq.id FROM questions qq JOIN kp ON qq.kp_id=kp.id
+                WHERE kp.subject='math' AND kp.stage=?""", (stage,))
+    ids = [r["id"] for r in rows]
+    random.shuffle(ids)
+    import time as _t
+    session["ch_q"] = ids[:25]
+    session["chi"] = 0
+    session["ch_score"] = 0
+    session["ch_end"] = _t.time() + 75
+    return redirect("challenge_do")
+
+
+@app.route("/challenge_do")
+def challenge_do():
+    import time as _t
+    ids = session.get("ch_q") or []
+    i = session.get("chi", 0)
+    left = int(session.get("ch_end", 0) - _t.time())
+    if not ids or i >= len(ids) or left <= 0:
+        return redirect("challenge_finish")
+    row = q1("""SELECT qq.*, k.name kp_name, k.module FROM questions qq JOIN kp k ON qq.kp_id=k.id WHERE qq.id=?""", (ids[i],))
+    if not row:
+        return redirect("challenge_finish")
+    return render_template("challenge_do.html", item=row, i=i, n=len(ids),
+                           left=left, score=session.get("ch_score", 0))
+
+
+@app.route("/challenge_answer", methods=["POST"])
+def challenge_answer():
+    import time as _t
+    result = request.form.get("result", type=float)
+    if _t.time() < session.get("ch_end", 0) and result in (0, 1):
+        if result == 1:
+            session["ch_score"] = session.get("ch_score", 0) + 1
+    session["chi"] = session.get("chi", 0) + 1
+    return redirect("challenge_do")
+
+
+@app.route("/challenge_finish")
+def challenge_finish():
+    score = session.get("ch_score", 0)
+    if session.get("ch_q"):
+        run("INSERT INTO challenge_log (score, total, created) VALUES (?,?,?)",
+            (score, len(session.get("ch_q") or []), now_iso()))
+        best = q1("SELECT COALESCE(MAX(score),0) b FROM challenge_log WHERE id < last_insert_rowid()")["b"]
+        rec = score > best
+        leveled, lv = add_xp(max(5, score * 5), "Boss战")
+        session["ch_q"] = []
+        return redirect("challenge?done=1&rec=" + ("1" if rec else "0") +
+                        f"&gx={max(5, score * 5)}" + (f"&lv={lv}" if leveled else "") + f"&sc={score}")
+    return redirect("challenge")
+
+
 def weekly_token():
     with open(KEY_PATH) as f:
         key = f.read().strip()
@@ -1561,7 +1811,8 @@ def tool_rate():
     if kind in TOOL_KINDS and key and result in (0, 0.5, 1):
         run("INSERT INTO tools_log (kind, item_key, result, created) VALUES (?,?,?,?)",
             (kind, key[:60], result, now_iso()))
-    return redirect("toolbox?tab=" + kind)
+    leveled, lv = add_xp(3, "卡片自测")
+    return redirect("toolbox?tab=" + kind + "&gx=3" + (f"&lv={lv}" if leveled else ""))
 
 
 def gen_questions_ai(subject_code, kind):
@@ -1621,7 +1872,7 @@ def gen_questions_ai(subject_code, kind):
 @app.route("/ceping")
 def ceping():
     subject = request.args.get("subject", "")
-    history = q("SELECT * FROM assessments ORDER BY id DESC LIMIT 8")
+    history = q("SELECT * FROM assessments WHERE kind != 'story' ORDER BY id DESC LIMIT 8")
     return render_template("assess.html", subject=subject, kinds=seed_data.ASSESS_KINDS, history=history)
 
 
@@ -1655,8 +1906,14 @@ def ceping_do():
     if not a:
         abort(404)
     questions = json.loads(a["questions"])
+    story_meta = None
+    if a["kind"] == "story":
+        sm = json.loads(a["answers"] or "{}")
+        theme = a["subject"][6:] if a["subject"].startswith("story:") else ""
+        story_meta = {"title": sm.get("title", ""), "intro": sm.get("intro", ""),
+                      "theme": STORY_THEMES.get(theme, {}), "code": theme}
     return render_template("assess_do.html", a=a, questions=questions,
-                           meta=seed_data.SUBJECTS.get(a["subject"], {}))
+                           meta=seed_data.SUBJECTS.get(a["subject"], {}), story_meta=story_meta)
 
 
 def ai_grade_assessment(a, answers):
@@ -1666,10 +1923,20 @@ def ai_grade_assessment(a, answers):
     lines = []
     for i, (qs, ans) in enumerate(zip(questions, answers), 1):
         lines.append(f"第{i}题（板块：{qs.get('board', '')}）：{qs['text']}\n参考答案：{qs.get('ref', '')}\n她的作答：{ans or '（未作答）'}")
-    ask = (
-        f"{profile_text()}\n"
-        f"教材版本：{textbook_of(a['subject'])}\n"
-        f"测评类型：{meta.get('name', '')}{kind_name}\n\n以下是逐题信息（题目/参考答案/她的作答）：\n" +
+    if a["kind"] == "story":
+        right = sum(1 for qs, ans in zip(questions, answers) if ans.strip() and any(k in ans for k in re.findall(r"[\u4e00-\u9fa5A-Za-z0-9]+", qs.get("ref", ""))[:6]))
+        mood = "全部或大部分答对" if right >= len(questions) - 1 else ("对错参半" if right >= 1 else "大部分答错")
+        ask = (
+            f"{profile_text()}\n她在互动剧情冒险一章的作答如下（{mood}）：\n\n" +
+            "\n\n".join(lines) +
+            "\n\n请以小说笔法写本章结局（120~180字）：根据作答推进剧情——答好则凯旋或获得线索，"
+            "答错则遭遇波折但获得提示与鼓励；结尾留下下一章悬念钩子。最后加【逐题点评】小节逐题简评。"
+        )
+    else:
+        ask = (
+            f"{profile_text()}\n"
+            f"教材版本：{textbook_of(a['subject'])}\n"
+            f"测评类型：{meta.get('name', '')}{kind_name}\n\n以下是逐题信息（题目/参考答案/她的作答）：\n" +
         "\n\n".join(lines) +
         "\n\n请严格按以下小节输出，直接以方括号标题开头：\n"
         "【逐题判定】每题一行：题号 ✓/◐/✗ + 一句话点评（对在哪/错在哪）\n"
@@ -1701,10 +1968,19 @@ def ceping_submit():
     report, err = ai_grade_assessment(a, answers)
     if err:
         return render_template("assess_do.html", a=a, questions=questions,
-                               meta=seed_data.SUBJECTS.get(a["subject"], {}),
+                               meta=seed_data.SUBJECTS.get(a["subject"], {}), story_meta=None,
                                error="AI 批改失败：" + err + "，请重试提交")
     run("UPDATE assessments SET answers=?, report=?, done=1 WHERE id=?",
         (json.dumps(answers, ensure_ascii=False), report, aid))
+    if a["kind"] == "story":
+        theme = a["subject"][6:] if a["subject"].startswith("story:") else ""
+        st = story_state()
+        entry = st.setdefault(theme, {"chapter": 0, "summary": ""})
+        entry["chapter"] = entry.get("chapter", 0) + 1
+        entry["summary"] = (report or "")[:120]
+        set_cfg("story_state", json.dumps(st, ensure_ascii=False))
+        leveled, lv = add_xp(40, "剧情冒险")
+        return redirect("ceping_result?id=" + str(aid) + "&gx=40" + (f"&lv={lv}" if leveled else ""))
     if a["kind"] == "subject":
         boards = {r["name"]: r["id"] for r in q("SELECT id, name FROM kp WHERE subject=?", (a["subject"],))}
         for qs, ans in zip(questions, answers):
@@ -1717,7 +1993,8 @@ def ceping_submit():
                 update_mastery(kid, 1 if hit >= 4 else 0.5)
             else:
                 update_mastery(kid, 0)
-    return redirect("ceping_result?id=" + str(aid))
+    leveled, lv = add_xp(30, "完成测评")
+    return redirect("ceping_result?id=" + str(aid) + "&gx=30" + (f"&lv={lv}" if leveled else ""))
 
 
 @app.route("/ceping_result")
@@ -1728,8 +2005,12 @@ def ceping_result():
         abort(404)
     questions = json.loads(a["questions"])
     answers = json.loads(a["answers"])
+    story_meta = None
+    if a["kind"] == "story":
+        theme = a["subject"][6:] if a["subject"].startswith("story:") else ""
+        story_meta = {"theme": STORY_THEMES.get(theme, {}), "code": theme}
     return render_template("assess_result.html", a=a, questions=questions, answers=answers,
-                           meta=seed_data.SUBJECTS.get(a["subject"], {}),
+                           meta=seed_data.SUBJECTS.get(a["subject"], {}), story_meta=story_meta,
                            kind_name=seed_data.ASSESS_KIND_LABEL.get(a["kind"], a["kind"]))
 
 
@@ -1803,7 +2084,8 @@ def quiz_answer():
             results.append({"text": row["text"], "kp_name": kp["name"] if kp else "", "result": result})
             session["quiz_r"] = results
     session["qi"] = session.get("qi", 0) + 1
-    return redirect("quiz")
+    leveled, lv = add_xp(10, "智能练习")
+    return redirect("quiz?gx=10" + (f"&lv={lv}" if leveled else ""))
 
 
 @app.route("/mastery")
@@ -2017,7 +2299,8 @@ def puzzle_answer():
             results.append({"text": row["text"], "cat": row["category"], "result": result})
             session["puzz_r"] = results
     session["pi"] = session.get("pi", 0) + 1
-    return redirect("puzzle")
+    leveled, lv = add_xp(15, "思维训练")
+    return redirect("puzzle?gx=15" + (f"&lv={lv}" if leveled else ""))
 
 
 def logic_stats(stage):

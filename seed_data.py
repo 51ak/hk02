@@ -53,7 +53,7 @@ ASSESS_KINDS = {
     "practice": "AI 专项练习（每次一组，即时批改与讲评）",
 }
 
-ASSESS_KIND_LABEL = {"subject": "学科摸底", "thinking": "思维摸底", "iq": "认知摸底", "practice": "AI 练习"}
+ASSESS_KIND_LABEL = {"subject": "学科摸底", "thinking": "思维摸底", "iq": "认知摸底", "practice": "AI 练习", "story": "剧情冒险"}
 
 for _code, _meta in SUBJECTS.items():
     _meta["icon"] = _SUBJECT_ICON[_code]

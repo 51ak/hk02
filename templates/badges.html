@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% block title %}勋章墙 · {{ site_name }}{% endblock %}
+{% block content %}
+<div class="card story-hero">
+  <div>
+    <h2>🏅 勋章墙 · {{ got }} / {{ rows | length }}</h2>
+    <p class="tiny">每一枚勋章都是一段看得见的努力</p>
+  </div>
+  <div class="ring {{ 'good' if xp_lv[0] >= 5 else '' }}">
+    <i style="background: conic-gradient(#9a7bff {{ [100, xp_lv[2]] | min }}%, rgba(255,255,255,.25) 0)"></i>
+    <b>{{ xp_lv[0] }}</b>
+  </div>
+</div>
+<div class="badge-grid">
+  {% for b in rows %}
+  <div class="badge-card {{ 'got' if b.done else 'lock' }}">
+    <span class="bd-icon">{{ b.icon if b.done else '🔒' }}</span>
+    <b>{{ b.name }}</b>
+    <p class="tiny">{{ b.desc }}</p>
+    {% if b.done %}
+    <span class="bd-state">已获得 ✓</span>
+    {% else %}
+    <div class="bar"><i style="width: {{ b.pct }}%"></i></div>
+    <span class="bd-state">{{ b.cur }} / {{ b.target }}</span>
+    {% endif %}
+  </div>
+  {% endfor %}
+</div>
+{% endblock %}

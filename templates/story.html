@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% block title %}剧情冒险 · {{ site_name }}{% endblock %}
+{% block content %}
+<div class="card story-hero">
+  <div>
+    <h2>🗺 剧情冒险 · 让习题变成故事</h2>
+    <p class="tiny">你是故事的主角：每一道题都是剧情的关卡，答对推进故事，答错剧情生变——已连载 {{ total_ch }} 章</p>
+  </div>
+</div>
+{% if error %}<p class="alert">{{ error }}</p>{% endif %}
+<div class="story-grid">
+  {% for t in themes %}
+  <div class="story-card" style="--g1: {{ t.c1 }}; --g2: {{ t.c2 }}">
+    <div class="stc-head">
+      <span class="stc-icon">{{ t.icon }}</span>
+      {% if t.chapter %}<span class="sc-badge">已连载 {{ t.chapter }} 章</span>{% else %}
+      <span class="sc-badge">新冒险</span>{% endif %}
+    </div>
+    <h3>{{ t.name }}</h3>
+    <p class="sc-desc">{{ t.desc }}</p>
+    {% if t.summary %}<p class="tiny stc-last">上章：{{ t.summary[:36] }}…</p>{% endif %}
+    <form method="post" action="story_start">
+      <input type="hidden" name="theme" value="{{ t.code }}">
+      <button class="btn big" type="submit">{{ '继续第 ' ~ (t.chapter + 1) ~ ' 章' if t.chapter else '开始冒险' }}</button>
+    </form>
+  </div>
+  {% endfor %}
+</div>
+{% endblock %}

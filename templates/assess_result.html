@@ -2,7 +2,7 @@
 {% block title %}测评报告 · {{ site_name }}{% endblock %}
 {% block content %}
 <div class="card hero-report">
-  <h2>{{ meta.name if meta }} · {{ kind_name }}报告</h2>
+  <h2>{{ (story_meta.theme.icon ~ " " ~ story_meta.theme.name ~ " · 本章结局") if story_meta else ((meta.name if meta else "") ~ " · " ~ kind_name ~ "报告") }}</h2>
   <p class="tiny">{{ a.created }} · {{ student_name }} · {{ region }}</p>
   <div class="report-body pre">{{ a.report }}</div>
 </div>
@@ -18,7 +18,15 @@
   {% endfor %}
 </div>
 <div class="btn-row">
+  {% if story_meta %}
+  <form method="post" action="{{ R }}story_start" class="inline-form">
+    <input type="hidden" name="theme" value="{{ story_meta.code }}">
+    <button class="btn" type="submit">下一章，冒险继续 →</button>
+  </form>
+  <a class="btn ghost" href="{{ R }}story">回冒险岛</a>
+  {% else %}
   <a class="btn" href="{{ R }}ceping">再做一次测评</a>
   <a class="btn ghost" href="{{ R }}{{ 'dashboard' if a.subject == 'math' else 'subject/' ~ a.subject }}">回学科主页</a>
+  {% endif %}
 </div>
 {% endblock %}

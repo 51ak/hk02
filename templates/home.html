@@ -14,6 +14,22 @@
   <div class="hero-rings"><i></i><i></i><i></i></div>
 </section>
 
+<div class="pony-strip card">
+  <div class="pony-avatar {{ '' if xp_today else 'sleepy' }}">
+    {% set st = pony_level if pony_level is defined else xp_lv[0] %}
+    {% if st >= 10 %}🦄{% elif st >= 7 %}🌟🐎{% elif st >= 5 %}🐎✨{% elif st >= 3 %}🐎{% else %}🐴{% endif %}
+  </div>
+  <div class="pony-info">
+    <b>{{ pony_name }} <span class="tiny">{{ '传奇独角兽' if st >= 10 else ('星辉千里马' if st >= 7 else ('银鞍骏马' if st >= 5 else ('活力小马' if st >= 3 else '小马驹'))) }}</span></b>
+    <p class="tiny">{{ '今天已陪伴你学习，它神采奕奕 ✨' if xp_today else '今天还没开始学习，' ~ pony_name ~ '在等你哦' }}</p>
+  </div>
+  <div class="pony-actions">
+    <a class="pact" href="{{ R }}story">🗺 剧情冒险</a>
+    <a class="pact" href="{{ R }}challenge">⚡ Boss 战</a>
+    <a class="pact" href="{{ R }}badges">🏅 勋章墙</a>
+  </div>
+</div>
+
 <div class="today-strip">
   <a class="tchip {{ 'hot' if due_total else 'done' }}" href="{{ R }}review">
     <b>{{ due_total }}</b> 道错题待复习 <i>{{ '立即去 →' if due_total else '今日已清零 ✓' }}</i>

@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+{% block title %}Boss 战 · {{ site_name }}{% endblock %}
+{% block content %}
+<div class="card story-hero boss-hero">
+  <div>
+    <h2>⚡ 限时 Boss 战</h2>
+    <p class="tiny">75 秒内答对尽可能多的题——拼速度，更拼准确。XP = 答对数 × 5</p>
+  </div>
+  <div class="boss-best">
+    <b>{{ best }}</b><span>历史最佳</span>
+  </div>
+</div>
+
+{% if conf %}
+<div class="card center-card cele">
+  <p class="big-ok">{{ '🏆 新纪录！' if request.args.get('rec') == '1' else '⚔️ 战斗结束' }}</p>
+  <p class="summary-line">本局答对 <b class="good">{{ request.args.get('sc', 0) }}</b> 题</p>
+  <div class="btn-row">
+    <form method="post" action="challenge_start" class="inline-form">
+      <button class="btn" type="submit">再来一战</button>
+    </form>
+    <a class="btn ghost" href="badges">看勋章</a>
+  </div>
+</div>
+{% else %}
+<div class="card center-card">
+  <p class="big-ok">⚡</p>
+  <p>准备好了吗？点击开始，75 秒倒计时立即启动！</p>
+  <form method="post" action="challenge_start" class="btn-row">
+    <button class="btn big" type="submit">开始 Boss 战</button>
+  </form>
+  <p class="tiny">题目来自数学题库，快问快答：看一眼会就点「会」，不确定点「不会」——诚实作答，成绩才有意义</p>
+</div>
+{% endif %}
+
+{% if history %}
+<div class="card">
+  <h2>战绩</h2>
+  <table class="table">
+    <tr><th>时间</th><th>答对</th><th>评价</th></tr>
+    {% for h in history %}
+    <tr>
+      <td>{{ h.created[:16] }}</td>
+      <td>{{ h.score }} / {{ h.total }}</td>
+      <td>{{ '🏆 新纪录' if h.score == best else ('💪 不错' if h.score >= 10 else ('加油' if h.score >= 5 else '再来一次')) }}</td>
+    </tr>
+    {% endfor %}
+  </table>
+</div>
+{% endif %}
+{% endblock %}
