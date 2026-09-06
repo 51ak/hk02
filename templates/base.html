@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>{% block title %}{{ site_name }}{% endblock %}</title>
-<link rel="stylesheet" href="static/css/style.css">
+<link rel="stylesheet" href="{{ rel('static/css/style.css') }}?v=2.2.2">
 </head>
 <body>
 <header class="topbar">
@@ -49,6 +49,6 @@
 <footer class="wrap foot">
   <p>掌握学习 · 刻意练习 · 间隔重复 · 错误驱动 · 批判性思维 · 因材施教</p>
 </footer>
-<script src="static/js/app.js"></script>
+<script src="{{ rel('static/js/app.js') }}?v=2.2.2"></script>
 </body>
 </html>

@@ -321,7 +321,7 @@ label.chk em { font-style: normal; color: var(--muted); font-size: 11px; }
 .rh-stats span { font-size: 11.5px; opacity: .9; }
 .ai-gen-form { display: flex; align-items: center; gap: 12px; margin-top: 14px; flex-wrap: wrap; }
 
-.dash-hero { background: linear-gradient(120deg, #6d5ae0, #9a7bff); border: 0; color: #fff; }
+.dash-hero { background: linear-gradient(120deg, var(--g1, #6d5ae0), var(--g2, #9a7bff)); border: 0; color: #fff; }
 .dash-hero-in { display: flex; align-items: center; justify-content: space-between; gap: 20px; flex-wrap: wrap; }
 .dash-hero h2 { margin-bottom: 2px; }
 .dash-hero .tiny { color: rgba(255,255,255,.85); }
