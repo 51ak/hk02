@@ -49,7 +49,46 @@
 </div>
 
 <div class="card">
-  <h2>③ 薄弱知识点清单（刻意练习靶点）</h2>
+  <h2>③ 逻辑思维诊断（Critical Thinking）</h2>
+  {% if ltotal %}
+  <p class="tiny">共 {{ ltotal }} 道「逻辑思维」错题的缺陷定位分布：</p>
+  {% for s in lstats %}
+  <div class="mod-row">
+    <span class="mod-name" title="{{ s.desc }}">{{ s.t }}</span>
+    <div class="bar grow"><i class="{{ 'bad' if s.pct >= 30 else 'warn' }}" style="width: {{ s.pct }}%"></i></div>
+    <span class="mod-val">{{ s.c }} 题 · {{ s.pct }}%</span>
+  </div>
+  <p class="tiny def-desc">▸ {{ s.desc }}</p>
+  {% endfor %}
+  {% if recommended %}
+  <div class="train-rec">
+    <b>针对性训练处方：</b>
+    {% for c in recommended %}
+    <form method="post" action="thinking_start" class="inline-form">
+      <input type="hidden" name="cat" value="{{ c }}">
+      <input type="hidden" name="count" value="5">
+      <button class="btn ghost sm" type="submit">{{ c }} ×5</button>
+    </form>
+    {% endfor %}
+  </div>
+  {% endif %}
+  {% else %}
+  <p class="empty">暂无逻辑思维错题。在错题本录入时选择错误原因「逻辑思维」并定位缺陷类型，这里会生成批判性思维画像。</p>
+  {% endif %}
+  {% if thinking_total %}
+  <div class="tstats-mini">
+    <b>思维训练战绩（累计 {{ thinking_total }} 题）：</b>
+    {% for c, s in tstats.items() if s.n %}
+    <span class="chip">{{ c }} {{ s.right }}/{{ s.n }}</span>
+    {% endfor %}
+  </div>
+  {% elif ltotal %}
+  <p class="tiny" style="margin-top:8px">思维训练尚未开始，建议从上方处方按钮进入。</p>
+  {% endif %}
+</div>
+
+<div class="card">
+  <h2>④ 薄弱知识点清单（刻意练习靶点）</h2>
   {% if weak %}
   <ol class="weak-list">
     {% for w in weak %}
@@ -67,7 +106,7 @@
 </div>
 
 <div class="card">
-  <h2>④ 个性化提升建议</h2>
+  <h2>⑤ 个性化提升建议</h2>
   {% if advice %}
   <ul class="tips">
     {% for a in advice %}
@@ -81,7 +120,7 @@
 
 {% if scores %}
 <div class="card">
-  <h2>⑤ 成绩轨迹</h2>
+  <h2>⑥ 成绩轨迹</h2>
   <div class="score-chips">
     {% for s in scores %}
     <span class="chip">{{ s.date }} {{ s.kind }} <b>{{ s.score | int }}/{{ s.full | int }}</b></span>

@@ -14,21 +14,25 @@
 ## 项目结构
 
 ```
-app.py            # Flask 入口 + 掌握度引擎 + 间隔重复(SM-2简化版) + 全部路由
-seed_data.py      # 知识点树（初中/高中 53 个知识点）+ 内置题库（254 题）
+app.py            # Flask 入口 + 掌握度引擎 + 间隔重复(SM-2简化版) + OCR + 全部路由
+seed_data.py      # 知识点树 + 题库（254 题）+ 逻辑缺陷分类 + 思维训练题库（49 题）
 templates/        # Jinja2 模板（相对路径，禁止以 / 开头的绝对路径）
 static/css/       # 样式
-data/             # math.db、secret_key（不入库）
+static/js/        # 表单交互（拍照 OCR、逻辑缺陷联动）
+data/             # math.db、secret_key、photos/（错题原图，均不入库）
 hk02.service      # systemd 服务文件（入库）
 nginx-hk02.conf   # nginx location 片段（入库）
 deploy.sh         # 部署指引
+setup-root.sh     # 一键上线脚本（root 执行，幂等）
 ```
 
 ## 核心模型（改动需谨慎，勿破坏既有数据）
 
-- **掌握度**：`kp.mastery` 0~100，自适应加权更新（练习次数越多波动越小）；错题按错因扣减（概念15/方法12/审题8/计算6）。
+- **掌握度**：`kp.mastery` 0~100，自适应加权更新（练习次数越多波动越小）；错题按错因扣减（概念15/方法12/逻辑12/审题8/计算6）。
 - **复习调度**：简化 SM-2，`mistakes.next_review` 到期入队；连续通过 3 次毕业（status=mastered）。
 - **选题引擎**：弱项优先 + 模块交错（interleaving）。
+- **逻辑思维诊断**：错因=逻辑思维时定位 `mistakes.logic_type`（10 类），报告页给出缺陷画像与思维训练处方。
+- **拍照录题**：`mistakes.photo` 存原图文件名（`data/photos/`），RapidOCR（rapidocr-onnxruntime）离线识别手写，懒加载每 worker 一次。
 - 数据库迁移采用「新增列需带 DEFAULT」的保守策略，禁止破坏性重建。
 
 ## 开发铁律（与 hk03 一致，完整保留）

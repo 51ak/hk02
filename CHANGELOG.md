@@ -1,8 +1,21 @@
 # CHANGELOG.md
 
-## v1.0.1（2026-09-06）新增一键上线脚本 setup-root.sh
+## v1.1.0（2026-09-06）逻辑思维诊断 + 拍照录题（OCR）
 
 - 提交哈希：（待回填）
+- 新增「逻辑思维诊断」（Critical Thinking）：
+  - 错因「思路错误」升级为「逻辑思维」，录入时进一步定位 10 类逻辑缺陷（条件识别/推理链断裂/概念混淆/方向选择/特殊到一般/忽视边界/循环论证/因果倒置/分类讨论缺失/命题逻辑错误）；
+  - AI 报告新增「逻辑思维诊断」区块：缺陷分布画像 + 定义解析 + 按缺陷→题型的针对性训练处方（一键开练）；
+  - 仪表盘「今日建议」接入思维训练打卡提醒。
+- 新增「思维训练」模块（门萨式横向/纵向思维题库 49 题，六大类：逻辑演绎/数字规律/图形空间/横向思维/策略决策/论证分析）：每日一题、随机混合、分类专项，答题后展示答案与解析，累计战绩与正确率统计。
+- 新增「拍照录题」：错题表单支持拍照/图片上传（手机调起相机），RapidOCR 离线手写识别自动填入题干（可修正），原图（含几何图形）永久保存，错题列表与复习页均可查看原图；文字删除/修改不影响原图。
+- 技术变更：mistakes 表新增 logic_type/photo 列（保守迁移）；新增 puzzles/thinking_log 表；新增 /ocr /photo /thinking /thinking_start /daily_start /puzzle /puzzle_answer 路由；引入 rapidocr-onnxruntime 依赖；新增 static/js/app.js。
+- 涉及文件：`app.py`、`seed_data.py`、`templates/`（base/mistakes/review/report/thinking/puzzle）、`static/js/app.js`、`static/css/style.css`、`requirements.txt`。
+- 回退方式：`git revert <hash>` 后 `sudo systemctl restart hk02`；数据库新列可保留不影响旧逻辑。
+
+## v1.0.1（2026-09-06）新增一键上线脚本 setup-root.sh
+
+- 提交哈希：f04926f
 - 背景：AI 会话内 sudo 被禁用（容器 no new privileges），服务安装与 nginx 变更无法代执行，站点仍显示关停页。
 - 内容：新增 `setup-root.sh`（root 一键执行：备份 nginx → 装 systemd 服务并启动 → 将 /hk02/ 关停提示块替换为 8041 反向代理 → `nginx -t` 通过后 reload → curl 验证）；幂等设计，重复执行安全；替换文本已用真实配置副本验证精确匹配。
 - 涉及文件：`setup-root.sh`、`CHANGELOG.md`。

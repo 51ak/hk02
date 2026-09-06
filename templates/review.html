@@ -9,6 +9,8 @@
     <span class="badge">{{ item.cause }}</span>
   </div>
   <p class="review-title">{{ item.title }}</p>
+  {% if item.photo %}<a class="photo-link" href="photo/{{ item.photo }}" target="_blank">🖼 查看题目原图（含几何图形）</a>{% endif %}
+  {% if item.logic_type %}<p class="logic-tag">逻辑缺陷：{{ item.logic_type }}</p>{% endif %}
   <details class="review-answer">
     <summary>先独立回想，再点开对照答案</summary>
     <p class="m-answer">{{ item.answer or '（未填写答案，凭记忆和笔记核对）' }}</p>

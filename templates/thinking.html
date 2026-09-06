@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% block title %}思维训练 · AI 数学成绩提升系统{% endblock %}
+{% block content %}
+<div class="card">
+  <h2>思维训练（门萨式 · 横向 + 纵向思维）</h2>
+  <p class="tiny">批判性思维训练模块：逻辑演绎（纵向推理链）、横向思维（打破假设）、策略决策（分类与规划）、论证分析（谬误识别）等六大类。与「逻辑思维」错因诊断联动，定点修补思维短板。</p>
+  <div class="btn-row">
+    <form method="post" action="daily_start" class="inline-form">
+      <button class="btn" type="submit">每日一题</button>
+    </form>
+    <form method="post" action="thinking_start" class="inline-form">
+      <input type="hidden" name="cat" value="">
+      <input type="hidden" name="count" value="5">
+      <button class="btn ghost" type="submit">随机 5 题（混合）</button>
+    </form>
+  </div>
+  <p class="tiny center" style="margin-top:8px">今日已训练 {{ day_n }} 题</p>
+</div>
+
+<div class="card">
+  <h2>分类训练与战绩</h2>
+  <div class="cat-grid">
+    {% for c in cats %}
+    {% set s = stats[c] %}
+    {% set acc = ((s.right / s.n * 100) | round(1)) if s.n else None %}
+    <div class="cat-box">
+      <h3>{{ c }}</h3>
+      {% if s.n %}
+      <div class="bar"><i class="{{ 'good' if acc >= 70 else ('warn' if acc >= 40 else 'bad') }}" style="width: {{ acc }}%"></i></div>
+      <p class="tiny">{{ s.n }} 题 · 正确率 {{ acc }}%</p>
+      {% else %}
+      <div class="bar"><i style="width: 0%"></i></div>
+      <p class="tiny">未训练</p>
+      {% endif %}
+      <form method="post" action="thinking_start" class="inline-form">
+        <input type="hidden" name="cat" value="{{ c }}">
+        <input type="hidden" name="count" value="5">
+        <button class="btn ghost sm" type="submit">练 5 题</button>
+      </form>
+    </div>
+    {% endfor %}
+  </div>
+  <p class="tiny">横向思维：跳出默认假设看问题（对应“条件识别缺陷”）；纵向思维：严密的演绎推理链（对应“推理链断裂”“命题逻辑错误”）。</p>
+</div>
+{% endblock %}

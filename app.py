@@ -4,30 +4,57 @@ import secrets
 import sqlite3
 from datetime import date, datetime, timedelta
 
-from flask import Flask, abort, g, redirect, render_template, request, session
+from flask import Flask, abort, g, jsonify, redirect, render_template, request, send_from_directory, session
 from werkzeug.security import check_password_hash, generate_password_hash
+from werkzeug.utils import secure_filename
 
 import seed_data
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DB_PATH = os.path.join(BASE_DIR, "data", "math.db")
 KEY_PATH = os.path.join(BASE_DIR, "data", "secret_key")
+PHOTO_DIR = os.path.join(BASE_DIR, "data", "photos")
+PHOTO_EXTS = {".jpg", ".jpeg", ".png", ".webp", ".gif", ".bmp"}
 
 app = Flask(__name__)
+app.config["MAX_CONTENT_LENGTH"] = 16 * 1024 * 1024
 
-CAUSES = ["概念不清", "方法不会", "思路错误", "审题失误", "计算错误", "粗心大意", "其他"]
-CAUSE_HIT = {"概念不清": 15, "方法不会": 12, "思路错误": 12, "审题失误": 8, "计算错误": 6, "粗心大意": 6, "其他": 5}
+CAUSES = ["概念不清", "方法不会", "逻辑思维", "审题失误", "计算错误", "粗心大意", "其他"]
+CAUSE_HIT = {"概念不清": 15, "方法不会": 12, "逻辑思维": 12, "审题失误": 8, "计算错误": 6, "粗心大意": 6, "其他": 5}
 CAUSE_ADVICE = {
     "概念不清": "回归课本重读定义定理，用费曼技巧把概念讲给别人听，讲不清的地方就是漏洞。",
     "方法不会": "针对该知识点补典型例题，先看解答再独立复现，总结成“题型-方法”卡片。",
-    "思路错误": "练习写解题思路提纲，每步问自己“由什么条件、想到什么、得到什么”。",
+    "逻辑思维": "已进入逻辑缺陷细分诊断：查看 AI 报告的「逻辑思维诊断」区块，按缺陷类型做对应的思维训练。",
     "审题失误": "养成圈画关键词的习惯：数字、单位、“不”“至少”“分别”等字眼逐个标记。",
     "计算错误": "每天 10 分钟限时口算/竖式训练，做题留验算时间，关键步骤代回检验。",
     "粗心大意": "使用检查清单：抄题核对、符号核对、单位核对，错一次记一次，量化警惕。",
     "其他": "把错题归因写清楚，模糊归因本身就是失分来源。",
 }
+LOGIC_TYPES = seed_data.LOGIC_TYPES
+LOGIC_TRAIN = seed_data.LOGIC_TRAIN
+PUZZLE_CATS = ["逻辑演绎", "数字规律", "图形空间", "横向思维", "策略决策", "论证分析"]
 LEVEL_VALUES = {0: 10, 1: 30, 2: 50, 3: 75, 4: 90}
 LEVEL_NAMES = {0: "完全不会", 1: "勉强记得", 2: "基本理解", 3: "比较熟练", 4: "非常熟练"}
+
+
+def load_ocr():
+    try:
+        from rapidocr_onnxruntime import RapidOCR
+        return RapidOCR()
+    except Exception:
+        return None
+
+
+_OCR = None
+_OCR_TRIED = False
+
+
+def get_ocr():
+    global _OCR, _OCR_TRIED
+    if not _OCR_TRIED:
+        _OCR_TRIED = True
+        _OCR = load_ocr()
+    return _OCR
 
 
 def load_secret():
@@ -129,9 +156,30 @@ def init_db():
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             mistake_id INTEGER, result REAL, created TEXT
         );
+        CREATE TABLE IF NOT EXISTS puzzles (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            category TEXT NOT NULL, diff INTEGER DEFAULT 2,
+            text TEXT NOT NULL, answer TEXT NOT NULL, explain TEXT DEFAULT ''
+        );
+        CREATE TABLE IF NOT EXISTS thinking_log (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            puzzle_id INTEGER, result REAL, created TEXT
+        );
         """
     )
     db.commit()
+    cols = [r[1] for r in db.execute("PRAGMA table_info(mistakes)").fetchall()]
+    if "logic_type" not in cols:
+        db.execute("ALTER TABLE mistakes ADD COLUMN logic_type TEXT DEFAULT ''")
+    if "photo" not in cols:
+        db.execute("ALTER TABLE mistakes ADD COLUMN photo TEXT DEFAULT ''")
+    db.execute("UPDATE mistakes SET cause='逻辑思维' WHERE cause='思路错误'")
+    db.commit()
+    if q1_static(db, "SELECT COUNT(*) c FROM puzzles")["c"] == 0:
+        for cat, diff, text, answer, explain in seed_data.PUZZLES:
+            db.execute("INSERT INTO puzzles (category, diff, text, answer, explain) VALUES (?,?,?,?,?)",
+                       (cat, diff, text, answer, explain))
+        db.commit()
     if q1_static(db, "SELECT COUNT(*) c FROM kp")["c"] == 0:
         for stage, module, kps in seed_data.MODULE_TREE:
             for name in kps:
@@ -331,6 +379,9 @@ def build_suggestions(stage):
     logs = q1("SELECT COUNT(*) c FROM practice_log WHERE created LIKE ?", (today_iso() + "%",))["c"]
     if logs == 0:
         tips.append(("打卡", "今天还没有练习记录，完成一组练习开启今日打卡。", "practice"))
+    think_n = q1("SELECT COUNT(*) c FROM thinking_log WHERE created LIKE ?", (today_iso() + "%",))["c"]
+    if think_n == 0:
+        tips.append(("思维", "今日思维训练未做：一道门萨式推理题，保持大脑“逻辑肌肉”。", "thinking"))
     return tips
 
 
@@ -429,7 +480,20 @@ def mistakes():
         rows = [r for r in rows if r["cause"] == cause]
     kps = stage_kps(stage)
     return render_template("mistakes.html", rows=rows, kps=kps, causes=CAUSES,
+                           logic_types=LOGIC_TYPES,
                            status=status, cause=cause, stage_name=seed_data.STAGES.get(stage, stage))
+
+
+def save_photo(filestor):
+    if not filestor or not filestor.filename:
+        return ""
+    ext = os.path.splitext(filestor.filename)[1].lower()
+    if ext not in PHOTO_EXTS:
+        return ""
+    os.makedirs(PHOTO_DIR, exist_ok=True)
+    name = datetime.now().strftime("%Y%m%d%H%M%S") + "_" + secrets.token_hex(6) + ext
+    filestor.save(os.path.join(PHOTO_DIR, name))
+    return name
 
 
 @app.route("/save_mistake", methods=["POST"])
@@ -438,17 +502,55 @@ def save_mistake():
     title = request.form.get("title", "").strip()
     answer = request.form.get("answer", "").strip()
     cause = request.form.get("cause", "其他")
+    logic_type = request.form.get("logic_type", "").strip()
+    if cause != "逻辑思维":
+        logic_type = ""
     source = request.form.get("source", "").strip()
     diff = request.form.get("diff", 2, type=int)
     if not kp_id or not title:
         abort(400)
+    photo = save_photo(request.files.get("photo"))
     run(
-        """INSERT INTO mistakes (kp_id, title, answer, cause, source, diff, created, next_review)
-           VALUES (?,?,?,?,?,?,?,?)""",
-        (kp_id, title, answer, cause, source, diff, now_iso(), today_iso()),
+        """INSERT INTO mistakes (kp_id, title, answer, cause, logic_type, source, diff, photo, created, next_review)
+           VALUES (?,?,?,?,?,?,?,?,?,?)""",
+        (kp_id, title, answer, cause, logic_type, source, diff, photo, now_iso(), today_iso()),
     )
     apply_penalty(kp_id, cause)
     return redirect("mistakes")
+
+
+@app.route("/ocr", methods=["POST"])
+def ocr():
+    engine = get_ocr()
+    if engine is None:
+        return jsonify({"ok": False, "msg": "OCR 组件未安装，请手动输入题干（原图仍会保存）"})
+    f = request.files.get("photo")
+    if not f or not f.filename:
+        return jsonify({"ok": False, "msg": "未收到图片"})
+    ext = os.path.splitext(f.filename)[1].lower()
+    if ext not in PHOTO_EXTS:
+        return jsonify({"ok": False, "msg": "不支持的图片格式"})
+    os.makedirs("/tmp/hk02_ocr", exist_ok=True)
+    tmp = os.path.join("/tmp/hk02_ocr", secrets.token_hex(8) + ext)
+    f.save(tmp)
+    try:
+        result, _ = engine(tmp)
+        if not result:
+            return jsonify({"ok": False, "msg": "未识别到文字，请手动输入"})
+        lines = [r[1] for r in result]
+        return jsonify({"ok": True, "text": "\n".join(lines)})
+    except Exception:
+        return jsonify({"ok": False, "msg": "识别出错，请手动输入"})
+    finally:
+        try:
+            os.remove(tmp)
+        except OSError:
+            pass
+
+
+@app.route("/photo/<path:name>")
+def photo(name):
+    return send_from_directory(PHOTO_DIR, name)
 
 
 @app.route("/delete_mistake", methods=["POST"])
@@ -689,6 +791,90 @@ def build_plan(stage, exam, target, minutes):
     }
 
 
+@app.route("/thinking")
+def thinking():
+    stats = {c: {"n": 0, "right": 0} for c in PUZZLE_CATS}
+    for r in q("""SELECT p.category, COUNT(*) n, SUM(CASE WHEN t.result >= 1 THEN 1 ELSE 0 END) rig
+                  FROM thinking_log t JOIN puzzles p ON t.puzzle_id=p.id GROUP BY p.category"""):
+        if r["category"] in stats:
+            stats[r["category"]] = {"n": r["n"], "right": r["rig"] or 0}
+    total = q1("SELECT COUNT(*) c FROM puzzles")["c"]
+    day_n = q1("SELECT COUNT(*) c FROM thinking_log WHERE created LIKE ?", (today_iso() + "%",))["c"]
+    daily = q("SELECT id FROM puzzles ORDER BY (id * 7919 + ?) % 100000 LIMIT 1", (date.today().toordinal() % 100000,))[0]["id"] \
+        if total else None
+    return render_template("thinking.html", stats=stats, day_n=day_n, daily=daily, cats=PUZZLE_CATS)
+
+
+@app.route("/thinking_start", methods=["POST"])
+def thinking_start():
+    cat = request.form.get("cat", "")
+    count = clamp(request.form.get("count", 5, type=int) or 5, 1, 20)
+    if cat and cat not in PUZZLE_CATS:
+        cat = ""
+    if cat:
+        rows = q("SELECT id FROM puzzles WHERE category=?", (cat,))
+    else:
+        rows = q("SELECT id FROM puzzles")
+    ids = [r["id"] for r in rows]
+    random.shuffle(ids)
+    session["puzzles"] = ids[:count]
+    session["pi"] = 0
+    session["puzz_r"] = []
+    return redirect("puzzle")
+
+
+@app.route("/daily_start", methods=["POST"])
+def daily_start():
+    total = q1("SELECT COUNT(*) c FROM puzzles")["c"]
+    if not total:
+        return redirect("thinking")
+    pid = q("SELECT id FROM puzzles ORDER BY (id * 7919 + ?) % 100000 LIMIT 1",
+            (date.today().toordinal() % 100000,))[0]["id"]
+    session["puzzles"] = [pid]
+    session["pi"] = 0
+    session["puzz_r"] = []
+    return redirect("puzzle")
+
+
+@app.route("/puzzle")
+def puzzle():
+    ids = session.get("puzzles") or []
+    i = session.get("pi", 0)
+    if i >= len(ids):
+        results = session.get("puzz_r") or []
+        return render_template("puzzle.html", done=True, item=None, i=i, n=len(ids), results=results)
+    row = q1("SELECT * FROM puzzles WHERE id=?", (ids[i],))
+    return render_template("puzzle.html", done=False, item=row, i=i, n=len(ids), results=None)
+
+
+@app.route("/puzzle_answer", methods=["POST"])
+def puzzle_answer():
+    pid = request.form.get("id", type=int)
+    result = request.form.get("result", type=float)
+    ids = session.get("puzzles") or []
+    if pid and result in (0, 0.5, 1) and session.get("pi", 0) < len(ids):
+        row = q1("SELECT * FROM puzzles WHERE id=?", (pid,))
+        if row:
+            run("INSERT INTO thinking_log (puzzle_id, result, created) VALUES (?,?,?)", (pid, result, now_iso()))
+            results = session.get("puzz_r") or []
+            results.append({"text": row["text"], "cat": row["category"], "result": result})
+            session["puzz_r"] = results
+    session["pi"] = session.get("pi", 0) + 1
+    return redirect("puzzle")
+
+
+def logic_stats(stage):
+    rows = q(
+        """SELECT m.logic_type, COUNT(*) c FROM mistakes m JOIN kp ON m.kp_id=kp.id
+           WHERE kp.stage=? AND m.logic_type != '' GROUP BY m.logic_type ORDER BY c DESC""",
+        (stage,),
+    )
+    total = sum(r["c"] for r in rows)
+    out = [{"t": r["logic_type"], "desc": LOGIC_TYPES.get(r["logic_type"], ""), "c": r["c"],
+            "pct": round(r["c"] * 100 / total) if total else 0} for r in rows]
+    return out, total
+
+
 @app.route("/report")
 def report():
     stage = cfg("stage", "cj")
@@ -705,10 +891,27 @@ def report():
     practice_total = q1("SELECT COUNT(*) c FROM practice_log")["c"]
     reviewed = q1("SELECT COUNT(*) c FROM reviews_done")["c"]
     active_n = q1("SELECT COUNT(*) c FROM mistakes WHERE status='active'")["c"]
+    lstats, ltotal = logic_stats(stage)
+    train_map = {}
+    for s in lstats:
+        cats = LOGIC_TRAIN.get(s["t"], [])
+        for c in cats:
+            train_map[c] = train_map.get(c, 0) + s["c"]
+    recommended = sorted(train_map, key=train_map.get, reverse=True)
+    tstats = {c: {"n": 0, "right": 0} for c in PUZZLE_CATS}
+    for r in q("""SELECT p.category, COUNT(*) n, SUM(CASE WHEN t.result >= 1 THEN 1 ELSE 0 END) rig
+                  FROM thinking_log t JOIN puzzles p ON t.puzzle_id=p.id GROUP BY p.category"""):
+        if r["category"] in tstats:
+            tstats[r["category"]] = {"n": r["n"], "right": r["rig"] or 0}
+    thinking_total = q1("SELECT COUNT(*) c FROM thinking_log")["c"]
     advice = []
     for d in dist:
         if d["pct"] >= 20:
             advice.append({"cause": d["cause"], "pct": d["pct"], "text": CAUSE_ADVICE.get(d["cause"], "")})
+    if ltotal:
+        top = lstats[0]
+        advice.append({"cause": "逻辑思维 · " + top["t"], "pct": top["pct"],
+                       "text": "这是你最主要的逻辑缺陷。针对性训练：" + "、".join(LOGIC_TRAIN.get(top["t"], [])) + "（见下方思维训练建议）。"})
     if overall_m < 60:
         advice.append({"cause": "整体策略", "pct": 0,
                        "text": "整体掌握度偏低，先用 2 周做基础排查：每个知识点自评 + 练 5 题，把漏洞全部暴露出来再谈提高。"})
@@ -718,10 +921,15 @@ def report():
     if trend is not None and trend < -5:
         advice.append({"cause": "成绩趋势", "pct": 0,
                        "text": "近期成绩下滑，检查是否复习中断：错题本里的 active 题目是否堆积？优先清空到期复习。"})
+    if thinking_total == 0 and ltotal >= 2:
+        advice.append({"cause": "思维训练", "pct": 0,
+                       "text": "已有多道逻辑思维错题，但思维训练尚未开始。每天 1~2 道门萨式题目即可显著改善推理链质量。"})
     return render_template(
         "report.html", overall_m=overall_m, label=label, cls=cls, mods=mods, weak=weak,
         dist=dist, total=total, scores=scores, trend=trend,
         practice_total=practice_total, reviewed=reviewed, active_n=active_n, advice=advice,
+        lstats=lstats, ltotal=ltotal, recommended=recommended, tstats=tstats,
+        thinking_total=thinking_total, logic_types=LOGIC_TYPES,
     )
 
 

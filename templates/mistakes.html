@@ -3,11 +3,16 @@
 {% block content %}
 <div class="card">
   <h2>录入错题</h2>
-  <form method="post" action="save_mistake" class="form-grid">
-    <label>题目内容 <span class="req">*</span>
-      <textarea name="title" rows="3" required placeholder="抄题干（可简写关键条件）"></textarea>
+  <form method="post" action="save_mistake" class="form-grid" enctype="multipart/form-data" id="mistakeForm">
+    <label class="wide photo-field">
+      拍照 / 上传题目图片（可选，支持手写）
+      <input type="file" name="photo" id="photoInput" accept="image/*" capture="environment">
+      <span class="tiny" id="ocrStatus">选图后自动识别手写内容填入题干；原图（含几何图形）将永久保留，可随时查看</span>
     </label>
-    <label>正确答案
+    <label class="wide">题目内容 <span class="req">*</span>
+      <textarea name="title" rows="3" id="titleInput" required placeholder="拍照自动识别，或手动抄题干（可简写关键条件）"></textarea>
+    </label>
+    <label class="wide">正确答案
       <textarea name="answer" rows="2" placeholder="正确解法或答案要点（复习时对照用）"></textarea>
     </label>
     <label>知识点 <span class="req">*</span>
@@ -20,8 +25,15 @@
       </select>
     </label>
     <label>错误原因
-      <select name="cause">
+      <select name="cause" id="causeSelect">
         {% for c in causes %}<option value="{{ c }}">{{ c }}</option>{% endfor %}
+      </select>
+    </label>
+    <label id="logicWrap" style="display:none" class="wide">
+      逻辑思维缺陷诊断（critical thinking 定位）
+      <select name="logic_type" id="logicSelect">
+        <option value="">— 请选择缺陷类型 —</option>
+        {% for k, v in logic_types.items() %}<option value="{{ k }}">{{ k }}：{{ v }}</option>{% endfor %}
       </select>
     </label>
     <label>难度
@@ -62,6 +74,8 @@
         {% if r.status == 'mastered' %}<span class="badge ok">已毕业</span>{% endif %}
       </div>
       <p class="m-title">{{ r.title }}</p>
+      {% if r.photo %}<a class="photo-link" href="photo/{{ r.photo }}" target="_blank">🖼 查看题目原图（含几何图形）</a>{% endif %}
+      {% if r.logic_type %}<p class="logic-tag">逻辑缺陷：{{ r.logic_type }} — {{ logic_types.get(r.logic_type, '') }}</p>{% endif %}
       {% if r.answer %}<details><summary>查看正确答案</summary><p class="m-answer">{{ r.answer }}</p></details>{% endif %}
       <div class="m-meta">
         <span>难度 {{ '★' * r.diff }}</span>
