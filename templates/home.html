@@ -24,7 +24,7 @@
     <p class="tiny">{{ '今天已陪伴你学习，它神采奕奕 ✨' if xp_today else '今天还没开始学习，' ~ pony_name ~ '在等你哦' }}</p>
   </div>
   <div class="pony-actions">
-    <a class="pact" href="{{ R }}story">🗺 剧情冒险</a>
+    <a class="pact" href="{{ R }}play">🎮 学习乐园</a>
     <a class="pact" href="{{ R }}challenge">⚡ Boss 战</a>
     <a class="pact" href="{{ R }}badges">🏅 勋章墙</a>
   </div>
@@ -69,11 +69,10 @@
 </div>
 
 <div class="quick-row">
+  <a href="{{ R }}play">🎮 学习乐园</a>
   <a href="{{ R }}ceping">🧪 摸底测评{% if assess_n %}（已测 {{ assess_n }} 次）{% endif %}</a>
   <a href="{{ R }}toolbox">🧰 知识工具箱</a>
-  <a href="{{ R }}draw">📐 几何作图</a>
   <a href="{{ R }}weekly">📮 家长周报</a>
-  <a href="{{ R }}settings">⚙️ 设置</a>
 </div>
 
 <div class="card tip-card">

@@ -883,6 +883,7 @@ def inject_common():
         "sb": subject_shell(),
         "R": (request.script_root + "/") if request.script_root else "/",
         "home_url": (request.script_root + "/") if request.script_root else "/",
+        "cur_subject": (subject_shell() or {}).get("code", "") if request.path != "/login" else "",
         "xp_lv": None if request.path == "/login" else xp_level(xp_total()),
         "streak_n": None if request.path == "/login" else streak_days(),
         "pony_name": cfg("pony_name", "奶糖"),
@@ -1686,6 +1687,22 @@ def challenge_finish():
         return redirect("challenge?done=1&rec=" + ("1" if rec else "0") +
                         f"&gx={max(5, score * 5)}" + (f"&lv={lv}" if leveled else "") + f"&sc={score}")
     return redirect("challenge")
+
+
+@app.route("/play")
+def play():
+    rows = badges_data()
+    got = sum(1 for r in rows if r["done"])
+    st = story_state()
+    total_ch = sum(t.get("chapter", 0) for t in st.values())
+    best = q1("SELECT COALESCE(MAX(score),0) b FROM challenge_log")["b"]
+    think_n = q1("SELECT COUNT(*) c FROM thinking_log")["c"]
+    think_today = q1("SELECT COUNT(*) c FROM thinking_log WHERE created LIKE ?", (today_iso() + "%",))["c"]
+    lv_info = xp_level(xp_total())
+    pony_icon, pony_nm = pony_stage(lv_info[0])
+    return render_template("play.html", rows=rows, got=got, total_ch=total_ch, best=best,
+                           think_n=think_n, think_today=think_today,
+                           lv_info=lv_info, pony_icon=pony_icon, pony_nm=pony_nm)
 
 
 def weekly_token():

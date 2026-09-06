@@ -23,12 +23,20 @@
 {% if not request.args.get('k') %}
 <nav class="mainnav">
   <div class="wrap nav-in">
-    <a href="{{ R }}" class="{{ 'on' if nav == 'home' }}">首页</a>
-    <a href="{{ R }}dashboard" class="{{ 'on' if nav in ('dashboard', 'practice', 'quiz', 'mastery', 'scores', 'plan', 'report', 'mistakes', 'solve', 'review', 'draw') }}">数学</a>
-    <a href="{{ R }}ceping" class="{{ 'on' if nav.startswith('ceping') }}">摸底测评</a>
-    <a href="{{ R }}thinking" class="{{ 'on' if nav == 'thinking' }}">思维训练</a>
-    <a href="{{ R }}toolbox" class="{{ 'on' if nav == 'toolbox' }}">工具箱</a>
-    <a href="{{ R }}settings" class="{{ 'on' if nav == 'settings' }}">设置</a>
+    <a href="{{ R }}" class="{{ 'on' if nav == 'home' }}">🏠 首页</a>
+    <a href="{{ R }}play" class="{{ 'on' if nav == 'play' }}">🎮 学习乐园</a>
+    <a href="{{ R }}ceping" class="{{ 'on' if nav.startswith('ceping') }}">🧪 摸底测评</a>
+    <a href="{{ R }}toolbox" class="{{ 'on' if nav == 'toolbox' }}">🧰 工具箱</a>
+    <a href="{{ R }}settings" class="{{ 'on' if nav == 'settings' }}">⚙️ 设置</a>
+  </div>
+</nav>
+<nav class="subjectnav">
+  <div class="wrap subnav-in">
+    <a href="{{ R }}" class="all {{ 'on' if not cur_subject }}">全部学科</a>
+    {% for code, smeta in subjects.items() %}
+    <a href="{{ R }}{{ 'dashboard' if code == 'math' else 'subject/' ~ code }}"
+       class="{{ 'on' if cur_subject == code }}" style="--sc: {{ smeta.c1 }}">{{ smeta.name }}</a>
+    {% endfor %}
   </div>
 </nav>
 {% endif %}

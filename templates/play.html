@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% block title %}学习乐园 · {{ site_name }}{% endblock %}
+{% block content %}
+<div class="card play-hero">
+  <div class="pony-avatar big">{{ pony_icon }}</div>
+  <div class="play-hero-info">
+    <h2>🎮 学习乐园</h2>
+    <p class="tiny">Lv.{{ lv_info[0] }} {{ lv_info[1] }} · {{ pony_nm }}「{{ pony_name }}」陪伴中 · 距下一级还差 {{ lv_info[3] }} XP</p>
+    <div class="lvl-progress"><i style="width: {{ lv_info[2] }}%"></i></div>
+  </div>
+  <div class="play-hero-side">
+    <div><b>{{ got }}/{{ rows | length }}</b><span>勋章</span></div>
+    <div><b>{{ total_ch }}</b><span>冒险章节</span></div>
+    <div><b>{{ best }}</b><span>Boss最佳</span></div>
+  </div>
+</div>
+
+<div class="play-grid">
+  <a class="play-card" href="{{ R }}story">
+    <span class="pc-icon">🗺</span>
+    <h3>剧情冒险</h3>
+    <p>你是故事主角：赛艇冠军之路 · 马术学院之谜 · 月光钢琴城堡 · 校园特工队，答对推进剧情</p>
+    <span class="pc-meta">{{ '已连载 ' ~ total_ch ~ ' 章' if total_ch else '全新冒险等待开启' }}</span>
+  </a>
+  <a class="play-card" href="{{ R }}challenge">
+    <span class="pc-icon">⚡</span>
+    <h3>限时 Boss 战</h3>
+    <p>75 秒快问快答，拼速度更拼准确，XP = 答对数 × 5</p>
+    <span class="pc-meta">历史最佳：{{ best }} 题</span>
+  </a>
+  <a class="play-card" href="{{ R }}thinking">
+    <span class="pc-icon">🧠</span>
+    <h3>思维训练</h3>
+    <p>门萨式题库：逻辑演绎 · 横向思维 · 图形空间 · 论证分析，每题 15 XP</p>
+    <span class="pc-meta">{{ ('今日已练 ✓' if think_today else '今日未练') }} · 累计 {{ think_n }} 题</span>
+  </a>
+  <a class="play-card" href="{{ R }}badges">
+    <span class="pc-icon">🏅</span>
+    <h3>勋章墙</h3>
+    <p>{{ got }} / {{ rows | length }} 枚已点亮，每一枚都是看得见的努力</p>
+    <span class="pc-meta">下一枚：{{ (rows | rejectattr('done') | first).name if rows | rejectattr('done') | list else '全部点亮！' }}</span>
+  </a>
+</div>
+{% endblock %}
