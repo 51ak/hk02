@@ -222,6 +222,8 @@ label.chk em { font-style: normal; color: var(--muted); font-size: 11px; }
 .ai-block h3 { margin: 0 0 6px; font-size: 14.5px; }
 .ai-block.ans { background: #f0fdf4; border: 1px solid #bbf7d0; }
 .ai-block.analysis { background: #fdf4ff; border: 1px solid #f5d0fe; }
+.ai-block.advice { background: #fffbeb; border: 1px solid #fde68a; }
+.m-answer.advice { background: #fffbeb; }
 .ai-block .pre, p.pre { white-space: pre-wrap; font-size: 14px; margin: 0; line-height: 1.8; }
 .ai-pending { background: var(--brand-2); border-radius: 10px; padding: 18px; text-align: center; margin-top: 14px; }
 .ai-loading { font-size: 14.5px; color: var(--brand); }

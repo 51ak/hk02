@@ -77,7 +77,8 @@
       {% if r.photo %}<a class="photo-link" href="photo/{{ r.photo }}" target="_blank">🖼 查看题目原图（含几何图形）</a>{% endif %}
       {% if r.logic_type %}<p class="logic-tag">逻辑缺陷：{{ r.logic_type }} — {{ logic_types.get(r.logic_type, '') }}</p>{% endif %}
       {% if r.ai_answer %}<details><summary>✅ AI 正确答案与解答</summary><p class="m-answer">{{ r.ai_answer }}</p></details>{% endif %}
-      {% if r.ai_analysis %}<details><summary>🔍 AI 错因分析</summary><p class="m-answer ai">{{ r.ai_analysis }}</p></details>{% endif %}
+      {% if r.ai_analysis %}<details><summary>🔍 AI 错因深度分析</summary><p class="m-answer ai">{{ r.ai_analysis }}</p></details>{% endif %}
+      {% if r.ai_advice %}<details><summary>🧠 AI 思维训练建议</summary><p class="m-answer advice">{{ r.ai_advice }}</p></details>{% endif %}
       {% if r.answer %}<details><summary>我当时写的答案</summary><p class="m-answer mine">{{ r.answer }}</p></details>{% endif %}
       {% if not r.ai_answer %}<a class="btn ghost sm" href="solve?id={{ r.id }}">生成 AI 解答与分析</a>{% endif %}
       <div class="m-meta">

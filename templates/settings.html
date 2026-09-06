@@ -11,6 +11,11 @@
         {% for k, v in stages.items() %}<option value="{{ k }}" {{ 'selected' if stage == k }}>{{ v }}</option>{% endfor %}
       </select>
     </label>
+    <label>年级（AI 按此定制解答深度）
+      <select name="grade">
+        {% for g in grades %}<option value="{{ g }}" {{ 'selected' if grade == g }}>{{ g }}</option>{% endfor %}
+      </select>
+    </label>
     <label>考试日期 <input type="date" name="exam_date" value="{{ exam_date }}"></label>
     <label>目标分数 <input type="text" name="target" value="{{ target }}" placeholder="如 110/150"></label>
     <label>每日可投入（分钟）<input type="number" name="minutes" value="{{ minutes }}" min="10" max="300"></label>

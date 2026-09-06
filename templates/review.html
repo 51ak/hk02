@@ -17,7 +17,8 @@
     <p class="m-answer"><b>✅ AI 解答：</b>{{ item.ai_answer }}</p>
     {% endif %}
     <p class="m-answer">{{ item.answer or '（未填写，凭记忆和笔记核对）' }}</p>
-    {% if item.ai_analysis %}<p class="m-answer ai"><b>🔍 错因分析：</b>{{ item.ai_analysis }}</p>{% endif %}
+    {% if item.ai_analysis %}<p class="m-answer ai"><b>🔍 错因深度分析：</b>{{ item.ai_analysis }}</p>{% endif %}
+    {% if item.ai_advice %}<p class="m-answer advice"><b>🧠 思维训练建议：</b>{{ item.ai_advice }}</p>{% endif %}
   </details>
   <p class="tiny center">诚实自评效果最好——检索练习的核心就是“先努力回想”。</p>
   <div class="grade-btns">

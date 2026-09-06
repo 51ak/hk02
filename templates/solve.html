@@ -20,9 +20,21 @@
     </div>
     <div class="ai-block analysis">
       <h3>🔍 错因深度分析</h3>
-      <p class="pre">{{ m.ai_analysis or '（未生成）' }}</p>
+      <p class="pre">{{ m.ai_analysis or '（未生成，可点下方重新生成）' }}</p>
     </div>
-    <p class="tiny">已存入错题记录，复习时会再次展示。</p>
+    {% if m.ai_advice %}
+    <div class="ai-block advice">
+      <h3>🧠 思维训练建议</h3>
+      <p class="pre">{{ m.ai_advice }}</p>
+    </div>
+    {% endif %}
+    <div class="btn-row">
+      <form method="post" action="ai_solve_form" class="inline-form" id="regenForm">
+        <input type="hidden" name="id" value="{{ m.id }}">
+        <button class="btn ghost" type="submit">🔄 重新生成</button>
+      </form>
+      <a class="btn ghost" href="thinking">去做思维训练</a>
+    </div>
   </div>
   {% else %}
   <div id="aiPending" class="ai-pending">
@@ -41,6 +53,10 @@
     <div class="ai-block analysis">
       <h3>🔍 错因深度分析</h3>
       <p class="pre" id="aiAnalysis"></p>
+    </div>
+    <div class="ai-block advice">
+      <h3>🧠 思维训练建议</h3>
+      <p class="pre" id="aiAdvice"></p>
     </div>
     <p class="tiny">已自动存入错题记录，复习时会再次展示。</p>
   </div>
@@ -71,7 +87,8 @@
         pending.style.display = 'none';
         if (d.ok) {
           document.getElementById('aiAns').textContent = d.steps ? (d.answer + '\n\n【解答过程】\n' + d.steps) : d.answer;
-          document.getElementById('aiAnalysis').textContent = d.analysis || '（未生成）';
+          document.getElementById('aiAnalysis').textContent = d.analysis || '（未生成，可点击重新生成）';
+          document.getElementById('aiAdvice').textContent = d.advice || '（未生成）';
           result.style.display = '';
         } else {
           document.getElementById('aiErrorMsg').textContent = d.msg || 'AI 解答失败';

@@ -53,7 +53,7 @@ def load_ai_cfg():
     return None
 
 
-def ai_chat(messages, max_tokens=1600, timeout=90):
+def ai_chat(messages, max_tokens=3000, timeout=120):
     cfg = load_ai_cfg()
     if not cfg:
         return None, "AI 网关未配置（缺少 data/ai.json）"
@@ -71,39 +71,68 @@ def ai_chat(messages, max_tokens=1600, timeout=90):
         return None, str(e)[:120]
 
 
-def ai_solve_mistake(m, kp_name, stage_name):
+def _sections(text):
+    marks = ["【正确答案】", "【解答过程】", "【错因深度分析】", "【思维训练建议】"]
+    out = {"answer": "", "steps": "", "analysis": "", "advice": ""}
+    keys = ["answer", "steps", "analysis", "advice"]
+    pos = []
+    for mk in marks:
+        i = text.find(mk)
+        pos.append(i)
+    if pos[0] < 0:
+        return None
+    for n in range(4):
+        if pos[n] < 0:
+            continue
+        start = pos[n] + len(marks[n])
+        end = min([p for p in pos[n + 1:] if p >= 0], default=len(text))
+        out[keys[n]] = text[start:end].strip()
+    return out
+
+
+def ai_solve_mistake(m, kp_name, grade, stage_name):
     my_answer = (m["answer"] or "").strip() or "未提供"
-    logic = ""
-    if m["logic_type"]:
-        logic = f"；逻辑缺陷定位：{m['logic_type']}（{LOGIC_TYPES.get(m['logic_type'], '')}）"
+    logic = f"；逻辑缺陷自评：{m['logic_type']}（{LOGIC_TYPES.get(m['logic_type'], '')}）" if m["logic_type"] else ""
     user = (
-        f"【学段】{stage_name}\n【题目】{m['title']}\n"
+        f"【年级】{grade}（{stage_name}）\n"
+        f"【题目】{m['title']}\n（题目可能来自手写 OCR，可能有识别噪音，请智能纠错理解题意；几何题若图形信息缺失，按最常见情形作答并注明假设）\n"
         f"【我当时写的答案/做法】{my_answer}\n"
-        f"【我的错误原因自评】{m['cause']}{logic}\n\n"
-        "请完成两件事，只输出一个 JSON 对象（不要 markdown 代码块，不要多余文字）：\n"
-        '{"answer": "最终正确答案（简洁，含关键结果）",\n'
-        ' "steps": "详细解答过程，分步编号，每步一行，含关键依据",\n'
-        ' "analysis": "针对我的错误原因的深度分析：我可能错在哪一步/哪个概念，为什么会错；'
-        '若涉及逻辑缺陷请从批判性思维角度指出思维漏洞；最后给 2~3 条针对性改进建议"}'
+        f"【我的错误原因自评】{m['cause']}{logic}（仅供参考，请你独立分析，不要照抄）\n\n"
+        "请严格按以下四个小节输出，直接以方括号标题开头，不要输出其他任何内容：\n"
+        "【正确答案】最终答案，简洁明确\n"
+        "【解答过程】分步编号（1. 2. 3. …），每步一行，写明依据的定理/法则，语言适合该年级学生自学\n"
+        "【错因深度分析】结合题目特点与我的做法，独立列举这道题最可能的 2~4 种错误原因"
+        "（如概念不清、方法选择不当、逻辑推理链断裂、审题遗漏条件、计算失误等），"
+        "每种给出典型表现与自查方法；若我提供了答案，指出最可能属于哪种并说明理由\n"
+        "【思维训练建议】3 条针对性建议：第 1 条为数学思维训练（门萨式逻辑推理、横向思维、"
+        "批判性思维/论证分析等，写明训练什么、怎么练）；第 2 条为针对本题型的专项练习方法；"
+        "第 3 条为学习习惯改进"
     )
     content, err = ai_chat([
-        {"role": "system", "content": "你是一名经验丰富的中学数学教师，精通中国大陆初中与高中数学课程，讲解条理清晰、适合学生自学。几何题若无图形信息，先说明需补充的条件再按常见情形解答。"},
+        {"role": "system", "content": "你是一名经验丰富的中学数学教师，精通中国大陆初中与高中数学课程，讲解条理清晰、适合学生自学，分析问题直击要害。"},
         {"role": "user", "content": user},
     ])
     if err:
         return None, err
-    try:
-        text = content.strip()
-        text = re.sub(r"^```(json)?|```$", "", text.strip(), flags=re.MULTILINE).strip()
-        start, end = text.find("{"), text.rfind("}")
-        obj = json.loads(text[start:end + 1])
-        return {
-            "answer": str(obj.get("answer", "")).strip(),
-            "steps": str(obj.get("steps", "")).strip(),
-            "analysis": str(obj.get("analysis", "")).strip(),
-        }, None
-    except Exception:
-        return {"answer": content.strip()[:2000], "steps": "", "analysis": ""}, None
+    sec = _sections(content)
+    if sec is None:
+        sec = {"answer": content.strip()[:3000], "steps": "", "analysis": "", "advice": ""}
+    if not sec["analysis"] or not sec["advice"]:
+        extra, err2 = ai_chat([
+            {"role": "system", "content": "你是一名专注于批判性思维训练的数学教师。"},
+            {"role": "user", "content": (
+                f"【年级】{grade}\n【题目】{m['title']}\n【我的答案】{my_answer}\n"
+                f"【我的错因自评】{m['cause']}{logic}\n参考解答：{sec['answer'][:600]}\n\n"
+                "请严格按两个小节输出：【错因深度分析】列举最可能 2~4 种错误原因及自查方法，指认我最可能的一种；"
+                "【思维训练建议】3 条：门萨式思维训练（逻辑/横向/批判性思维，写明怎么练）、本题型专项练习、习惯改进。"
+            )},
+        ], max_tokens=1500)
+        if not err2 and extra:
+            sec2 = _sections(extra)
+            if sec2:
+                sec["analysis"] = sec["analysis"] or sec2["analysis"]
+                sec["advice"] = sec["advice"] or sec2["advice"]
+    return sec, None
 
 
 def load_ocr():
@@ -246,6 +275,8 @@ def init_db():
         db.execute("ALTER TABLE mistakes ADD COLUMN ai_answer TEXT DEFAULT ''")
     if "ai_analysis" not in cols:
         db.execute("ALTER TABLE mistakes ADD COLUMN ai_analysis TEXT DEFAULT ''")
+    if "ai_advice" not in cols:
+        db.execute("ALTER TABLE mistakes ADD COLUMN ai_advice TEXT DEFAULT ''")
     db.execute("UPDATE mistakes SET cause='逻辑思维' WHERE cause='思路错误'")
     db.commit()
     if q1_static(db, "SELECT COUNT(*) c FROM puzzles")["c"] == 0:
@@ -268,7 +299,7 @@ def init_db():
             if kp_id:
                 db.execute("INSERT INTO questions (kp_id, diff, text, answer) VALUES (?,?,?,?)", (kp_id, diff, text, answer))
         db.commit()
-    defaults = {"stage": "cj", "exam_date": "", "target": "", "minutes": "40"}
+    defaults = {"stage": "cj", "exam_date": "", "target": "", "minutes": "40", "grade": "初二"}
     for k, v in defaults.items():
         db.execute("INSERT OR IGNORE INTO config (key, value) VALUES (?,?)", (k, v))
     db.commit()
@@ -609,12 +640,30 @@ def ai_solve():
     if not m:
         return jsonify({"ok": False, "msg": "错题不存在"}), 404
     stage_name = seed_data.STAGES.get(m["stage"], m["stage"])
-    result, err = ai_solve_mistake(m, m["kp_name"], stage_name)
+    grade = cfg("grade", "初二")
+    result, err = ai_solve_mistake(m, m["kp_name"], grade, stage_name)
     if err:
         return jsonify({"ok": False, "msg": "AI 解答失败：" + err + "，可稍后重试"})
-    run("UPDATE mistakes SET ai_answer=?, ai_analysis=? WHERE id=?",
-        (result["answer"] + ("\n\n【解答过程】\n" + result["steps"] if result["steps"] else ""), result["analysis"], mid))
+    run("UPDATE mistakes SET ai_answer=?, ai_analysis=?, ai_advice=? WHERE id=?",
+        ((result["answer"] + ("\n\n【解答过程】\n" + result["steps"] if result["steps"] else "")),
+         result["analysis"], result["advice"], mid))
     return jsonify({"ok": True, **result})
+
+
+@app.route("/ai_solve_form", methods=["POST"])
+def ai_solve_form():
+    mid = request.form.get("id", type=int)
+    if not mid or not q1("SELECT id FROM mistakes WHERE id=?", (mid,)):
+        abort(404)
+    m = q1("""SELECT m.*, kp.name kp_name, kp.module, kp.stage FROM mistakes m JOIN kp ON m.kp_id=kp.id WHERE m.id=?""", (mid,))
+    stage_name = seed_data.STAGES.get(m["stage"], m["stage"])
+    grade = cfg("grade", "初二")
+    result, err = ai_solve_mistake(m, m["kp_name"], grade, stage_name)
+    if not err:
+        run("UPDATE mistakes SET ai_answer=?, ai_analysis=?, ai_advice=? WHERE id=?",
+            ((result["answer"] + ("\n\n【解答过程】\n" + result["steps"] if result["steps"] else "")),
+             result["analysis"], result["advice"], mid))
+    return redirect("solve?id=" + str(mid))
 
 
 @app.route("/ocr", methods=["POST"])
@@ -1039,6 +1088,7 @@ def settings():
         action = request.form.get("action")
         if action == "profile":
             set_cfg("stage", request.form.get("stage", "cj"))
+            set_cfg("grade", request.form.get("grade", "初二"))
             set_cfg("exam_date", request.form.get("exam_date", ""))
             set_cfg("target", request.form.get("target", "").strip())
             set_cfg("minutes", str(clamp(request.form.get("minutes", 40, type=int) or 40, 10, 300)))
@@ -1055,7 +1105,9 @@ def settings():
                 pw_msg = "密码已更新"
     return render_template("settings.html", saved=saved, pw_msg=pw_msg,
                            exam_date=cfg("exam_date"), target=cfg("target"),
-                           minutes=cfg("minutes", "40"), stages=seed_data.STAGES)
+                           minutes=cfg("minutes", "40"), stages=seed_data.STAGES,
+                           grade=cfg("grade", "初二"),
+                           grades=["初一", "初二", "初三", "高一", "高二", "高三"])
 
 
 init_db()
