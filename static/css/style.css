@@ -364,6 +364,33 @@ label.chk em { font-style: normal; color: var(--muted); font-size: 11px; }
 .tool-links a:hover { border-color: var(--brand); background: var(--brand-soft); }
 .toolbox { background: linear-gradient(135deg, #f4effc, #fff); }
 
+.stepbox { margin-top: 4px; }
+.steplist { display: flex; flex-direction: column; gap: 8px; min-height: 40px; }
+.step-card { background: #fff; border: 1px solid var(--line); border-left: 4px solid var(--brand); border-radius: 10px; padding: 9px 13px; font-size: 14px; white-space: pre-wrap; line-height: 1.7; animation: stepIn .45s ease both; }
+.step-card.now { border-left-color: #2f9e6e; box-shadow: 0 3px 10px rgba(47, 158, 110, .12); }
+.step-done { text-align: center; margin: 6px 0 0; }
+.step-ctrl { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
+@keyframes stepIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+.weekly-hero { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; background: linear-gradient(120deg, #6d5ae0, #9a7bff); border: 0; color: #fff; }
+.weekly-hero .tiny { color: rgba(255,255,255,.85); }
+.weekly-hero h2 { margin-bottom: 2px; }
+.weekly-subjs { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 10px; }
+.wsub { --g1: #6d5ae0; --g2: #9a7bff; display: flex; align-items: center; gap: 10px; background: linear-gradient(120deg, color-mix(in srgb, var(--g1) 10%, #fff), #fff); border: 1px solid var(--line); border-radius: 12px; padding: 10px 14px; }
+.wsub-icon { font-size: 22px; }
+.wsub-body { flex: 1; }
+.wsub-body b { font-size: 13.5px; }
+.wsub-body .bar { height: 7px; margin-top: 4px; }
+.wsub-body .bar i { background: linear-gradient(90deg, var(--g1), var(--g2)); }
+.wsub-val { font-size: 13px; font-weight: 700; }
+.wsub-val em { font-style: normal; font-size: 12px; }
+.wsub-val em.up { color: var(--good); }
+.wsub-val em.down { color: var(--bad); }
+.tool-search { border: 1.5px solid var(--line); border-radius: 999px; padding: 4px 14px; font-size: 13px; background: #fff; }
+.tool-item { border: 1px solid var(--line); border-radius: 12px; padding: 12px 15px; margin-bottom: 10px; background: #fdfcff; }
+.ti-front { display: flex; justify-content: space-between; gap: 10px; align-items: baseline; flex-wrap: wrap; }
+.ti-meta { font-size: 12px; color: var(--muted); }
+.ti-rate { display: flex; gap: 8px; margin-top: 6px; }
+
 @media (max-width: 700px) {
   .two-col { grid-template-columns: 1fr; }
   .jxgbox { height: 340px; }

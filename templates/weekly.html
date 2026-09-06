@@ -1,0 +1,102 @@
+{% extends "base.html" %}
+{% block title %}家长周报 · {{ site_name }}{% endblock %}
+{% block content %}
+<div class="card weekly-hero">
+  <div>
+    <h2>📮 学习周报</h2>
+    <p class="tiny">{{ student_name }} · {{ region }} · {{ now[:10] }}（统计自 {{ week7 }} 起）</p>
+  </div>
+  {% if not shared %}
+  <div class="share-box">
+    <button class="btn ghost sm" id="shareBtn" type="button">📋 复制家长分享链接</button>
+    <p class="tiny">链接 30 天内有效，家长无需登录即可查看</p>
+  </div>
+  {% endif %}
+</div>
+
+<div class="stat-grid">
+  <div class="card stat"><div class="stat-num">{{ stats.practice }}</div><div class="stat-name">本周练习</div></div>
+  <div class="card stat"><div class="stat-num">{{ stats.review }}</div><div class="stat-name">错题复习</div></div>
+  <div class="card stat"><div class="stat-num">{{ stats.thinking }}</div><div class="stat-name">思维训练</div></div>
+  <div class="card stat"><div class="stat-num">{{ stats.mistakes }}</div><div class="stat-name">新增错题</div></div>
+  <div class="card stat"><div class="stat-num">{{ stats.assess }}</div><div class="stat-name">AI 测评</div></div>
+</div>
+
+<div class="card">
+  <h2>各科掌握度变化</h2>
+  <div class="weekly-subjs">
+    {% for r in subj_rows %}
+    <div class="wsub" style="--g1: {{ r.c1 }}; --g2: {{ r.c2 }}">
+      <span class="wsub-icon">{{ r.icon }}</span>
+      <div class="wsub-body">
+        <b>{{ r.name }}</b>
+        <div class="bar"><i style="width: {{ r.avg | int }}%"></i></div>
+      </div>
+      <span class="wsub-val">
+        {{ r.avg }}{% if r.delta is not none %} <em class="{{ 'up' if r.delta > 0 else ('down' if r.delta < 0 else '') }}">{{ '+' if r.delta > 0 }}{{ r.delta }}</em>{% endif %}
+      </span>
+    </div>
+    {% endfor %}
+  </div>
+  {% if subj_rows and subj_rows[0].weak %}<p class="tiny">当前最需要关注：{{ subj_rows[-1].name }}（薄弱点：{{ subj_rows[-1].weak }}）</p>{% endif %}
+</div>
+
+<div class="two-col">
+  <div class="card">
+    <h2>✨ 本周亮点</h2>
+    {% if highlights %}
+    <ul class="tips">{% for h in highlights %}<li><span class="tag">亮点</span>{{ h }}</li>{% endfor %}</ul>
+    {% else %}<p class="empty">本周数据还不多，坚持几天就能看到亮点。</p>{% endif %}
+    <h2 style="margin-top:16px">📌 建议</h2>
+    <ul class="tips">{% for a in advice %}<li><span class="tag">建议</span>{{ a }}</li>{% endfor %}</ul>
+  </div>
+  <div class="card">
+    <h2>🤖 AI 班主任评语</h2>
+    <div id="aiComment" class="report-body pre" style="display:none"></div>
+    <div id="aiPending" class="ai-pending"><p class="ai-loading"><span class="spinner"></span>正在生成教师口吻周评…</p></div>
+    <div id="aiErr" style="display:none"><p class="alert" id="aiErrMsg"></p></div>
+    <button class="btn" id="genCmt" type="button">生成 AI 周评</button>
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+(function () {
+  var b = document.getElementById('genCmt');
+  if (!b) return;
+  b.addEventListener('click', function () {
+    document.getElementById('aiErr').style.display = 'none';
+    document.getElementById('aiComment').style.display = 'none';
+    document.getElementById('aiPending').style.display = '';
+    fetch((window.APP_ROOT || '') + 'weekly_ai', { method: 'POST' })
+      .then(function (r) { return r.json(); })
+      .then(function (d) {
+        document.getElementById('aiPending').style.display = 'none';
+        if (d.ok) {
+          document.getElementById('aiComment').textContent = d.text;
+          document.getElementById('aiComment').style.display = '';
+        } else {
+          document.getElementById('aiErrMsg').textContent = d.msg || '生成失败';
+          document.getElementById('aiErr').style.display = '';
+        }
+      })
+      .catch(function () {
+        document.getElementById('aiPending').style.display = 'none';
+        document.getElementById('aiErrMsg').textContent = '网络异常';
+        document.getElementById('aiErr').style.display = '';
+      });
+  });
+  var sb = document.getElementById('shareBtn');
+  if (sb) {
+    sb.addEventListener('click', function () {
+      var url = location.origin + location.pathname + '?k={{ token }}';
+      if (navigator.clipboard) {
+        navigator.clipboard.writeText(url).then(function () { sb.textContent = '✅ 已复制，发给家长吧'; });
+      } else {
+        window.prompt('复制此链接发给家长：', url);
+      }
+    });
+  }
+})();
+</script>
+{% endblock %}

@@ -9,6 +9,15 @@
     <label>姓名 <input type="text" name="name" value="{{ name }}" maxlength="20"></label>
     <label>地区 <input type="text" name="region" value="{{ region }}" maxlength="20" placeholder="如 江苏南京"></label>
     <label class="wide">兴趣特长（AI 会用来定制题目情境）<input type="text" name="hobbies" value="{{ hobbies }}" placeholder="如 马术、赛艇、钢琴"></label>
+    {% for code, meta in tb.items() %}
+    {% if meta[0] %}
+    <label>{{ subjects[code].name }} 教材
+      <select name="tb_{{ code }}">
+        {% for opt in meta[1] %}<option value="{{ opt }}" {{ 'selected' if cur_tb.get(code) == opt }}>{{ opt }}</option>{% endfor %}
+      </select>
+    </label>
+    {% endif %}
+    {% endfor %}
     <label>学段
       <select name="stage">
         {% for k, v in stages.items() %}<option value="{{ k }}" {{ 'selected' if stage == k }}>{{ v }}</option>{% endfor %}

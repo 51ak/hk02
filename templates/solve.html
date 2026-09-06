@@ -17,7 +17,7 @@
   <div class="ai-result">
     <div class="ai-block ans">
       <h3>{{ '🎯 考察点与标准答案' if m.subject == 'chinese' else '✅ 正确答案与解答' }}</h3>
-      <p class="pre">{{ m.ai_answer }}</p>
+      <div class="steps-anim" data-steps="{{ m.ai_answer }}">{{ m.ai_answer }}</div>
     </div>
     <div class="ai-block analysis">
       <h3>{{ '🔍 答案对比——差距在哪' if m.subject == 'chinese' else '🔍 错因深度分析' }}</h3>
@@ -48,8 +48,8 @@
   </div>
   <div id="aiResult" style="display:none" class="ai-result">
     <div class="ai-block ans">
-      <h3 id="aiAnsTitle">{{ '🎯 考察点与标准答案' if m.subject == 'chinese' else '✅ 正确答案与解答' }}</h3>
-      <p class="pre" id="aiAns"></p>
+      <h3>{{ '🎯 考察点与标准答案' if m.subject == 'chinese' else '✅ 正确答案与解答' }}</h3>
+      <div id="aiAnsWrap"></div>
     </div>
     <div class="ai-block analysis">
       <h3>{{ '🔍 答案对比——差距在哪' if m.subject == 'chinese' else '🔍 错因深度分析' }}</h3>
@@ -96,7 +96,7 @@
           if (d.figure) text += '【图形识别】' + d.figure + '\n\n';
           if (d.steps) text += (d.answer ? d.answer + '\n\n' : '') + ({{ ('true' if m.subject == 'chinese' else 'false') | safe }} ? '【标准答案】\n' : '【解答过程】\n') + d.steps;
           else text += d.answer || '';
-          document.getElementById('aiAns').textContent = text;
+          enhanceSteps(document.getElementById('aiAnsWrap'), text);
           document.getElementById('aiAnalysis').textContent = d.analysis || '（未生成，可点击重新生成）';
           document.getElementById('aiAdvice').textContent = d.advice || '（未生成）';
           result.style.display = '';
@@ -115,5 +115,67 @@
   if (retry) retry.addEventListener('click', run);
   run();
 })();
+
+function enhanceSteps(wrap, text) {
+  if (!wrap) return;
+  wrap.innerHTML = '';
+  var lines = String(text || '').split('\n');
+  var steps = [], buf = [];
+  lines.forEach(function (l) {
+    if (/^\s*(\d+[\.、）)]|[①②③④⑤⑥⑦⑧⑨⑩])/.test(l)) {
+      if (buf.length) { steps.push(buf.join('\n')); buf = []; }
+    }
+    buf.push(l);
+  });
+  if (buf.length) steps.push(buf.join('\n'));
+  if (!steps.length) steps = [text || ''];
+  var box = document.createElement('div');
+  box.className = 'stepbox';
+  var list = document.createElement('div');
+  list.className = 'steplist';
+  var cur = -1, timer = null;
+  function render() {
+    list.innerHTML = '';
+    for (var i = 0; i <= cur && i < steps.length; i++) {
+      var d = document.createElement('div');
+      d.className = 'step-card' + (i === cur ? ' now' : '');
+      d.textContent = steps[i];
+      list.appendChild(d);
+    }
+    if (cur >= steps.length - 1) {
+      var all = document.createElement('p');
+      all.className = 'tiny step-done';
+      all.textContent = '— 共 ' + steps.length + ' 步，全部展示完毕 —';
+      list.appendChild(all);
+    }
+  }
+  function next() { if (cur < steps.length - 1) { cur++; render(); } else { stop(); } }
+  function stop() { if (timer) { clearInterval(timer); timer = null; btnPlay.textContent = '▶ 自动播放'; } }
+  var ctrl = document.createElement('div');
+  ctrl.className = 'step-ctrl';
+  var btnPrev = document.createElement('button'); btnPrev.className = 'btn ghost sm'; btnPrev.textContent = '⏮ 上一步';
+  var btnNext = document.createElement('button'); btnNext.className = 'btn sm'; btnNext.textContent = '下一步 ▶';
+  var btnPlay = document.createElement('button'); btnPlay.className = 'btn ghost sm'; btnPlay.textContent = '▶ 自动播放';
+  var btnRe = document.createElement('button'); btnPlay2 = null;
+  var btnRe2 = document.createElement('button'); btnRe2.className = 'btn ghost sm'; btnRe2.textContent = '🔄 重播';
+  btnPrev.onclick = function () { stop(); if (cur >= 0) { cur--; render(); } };
+  btnNext.onclick = function () { stop(); next(); };
+  btnRe2.onclick = function () { stop(); cur = -1; render(); setTimeout(next, 350); };
+  btnPlay.onclick = function () {
+    if (timer) { stop(); return; }
+    btnPlay.textContent = '⏸ 暂停';
+    if (cur >= steps.length - 1) { cur = -1; render(); }
+    timer = setInterval(next, 2600);
+    next();
+  };
+  ctrl.appendChild(btnPrev); ctrl.appendChild(btnNext); ctrl.appendChild(btnPlay); ctrl.appendChild(btnRe2);
+  box.appendChild(list); box.appendChild(ctrl);
+  wrap.appendChild(box);
+  cur = 0; render();
+}
+document.querySelectorAll('.steps-anim').forEach(function (el) {
+  var t = el.getAttribute('data-steps') || el.textContent;
+  enhanceSteps(el, t);
+});
 </script>
 {% endblock %}

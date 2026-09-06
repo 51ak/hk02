@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+{% block title %}知识工具箱 · {{ site_name }}{% endblock %}
+{% block content %}
+<div class="card">
+  <h2>🧰 知识工具箱</h2>
+  <p class="tiny">公式速记 · 古诗文名句 · 英语高频词——卡片式自测：先遮住答案回想，再自评，掌握不牢的自动排到前面。</p>
+  <div class="filters">
+    <a href="{{ R }}toolbox?tab=formula" class="{{ 'on' if kind == 'formula' }}">📐 数学公式（{{ items | length if kind == 'formula' }}）</a>
+    <a href="{{ R }}toolbox?tab=poem" class="{{ 'on' if kind == 'poem' }}">📜 古诗文名句（{{ items | length if kind == 'poem' }}）</a>
+    <a href="{{ R }}toolbox?tab=word" class="{{ 'on' if kind == 'word' }}">🔤 英语高频词（{{ items | length if kind == 'word' }}）</a>
+    <span class="sep">|</span>
+    <input type="text" id="toolSearch" placeholder="🔍 搜索…" class="tool-search">
+  </div>
+  <div class="tool-list" id="toolList">
+    {% for it in items %}
+    <div class="tool-item" data-key="{{ it.key }}{{ it.front }}">
+      <div class="ti-front">
+        <b>{{ it.front }}</b>
+        <span class="ti-meta">{% if it.rate is not none %}自测 {{ it.n }} 次 · 正确率 {{ it.rate }}%{% else %}未自测{% endif %}</span>
+      </div>
+      <details class="ti-reveal">
+        <summary>遮住了，点击回想后揭晓</summary>
+        <p class="m-answer">{{ it.back }}</p>
+        {% if it.note %}<p class="tiny">{{ it.note }}</p>{% endif %}
+      </details>
+      <div class="ti-rate">
+        <form method="post" action="{{ R }}tool_rate" class="inline-form"><input type="hidden" name="kind" value="{{ kind }}"><input type="hidden" name="key" value="{{ it.key }}"><input type="hidden" name="result" value="0"><button class="btn bad-btn sm" type="submit">忘了</button></form>
+        <form method="post" action="{{ R }}tool_rate" class="inline-form"><input type="hidden" name="kind" value="{{ kind }}"><input type="hidden" name="key" value="{{ it.key }}"><input type="hidden" name="result" value="0.5"><button class="btn warn-btn sm" type="submit">模糊</button></form>
+        <form method="post" action="{{ R }}tool_rate" class="inline-form"><input type="hidden" name="kind" value="{{ kind }}"><input type="hidden" name="key" value="{{ it.key }}"><input type="hidden" name="result" value="1"><button class="btn good-btn sm" type="submit">记得</button></form>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+(function () {
+  var s = document.getElementById('toolSearch');
+  if (!s) return;
+  s.addEventListener('input', function () {
+    var kw = s.value.trim().toLowerCase();
+    document.querySelectorAll('#toolList .tool-item').forEach(function (el) {
+      el.style.display = !kw || el.dataset.key.toLowerCase().indexOf(kw) >= 0 ? '' : 'none';
+    });
+  });
+})();
+</script>
+{% endblock %}

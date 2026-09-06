@@ -20,7 +20,9 @@
     <a href="{{ R }}" class="{{ 'on' if nav == 'home' }}">首页</a>
     <a href="{{ R }}ceping" class="{{ 'on' if nav.startswith('ceping') }}">摸底测评</a>
     <a href="{{ R }}thinking" class="{{ 'on' if nav == 'thinking' }}">思维训练</a>
+    <a href="{{ R }}toolbox" class="{{ 'on' if nav == 'toolbox' }}">工具箱</a>
     <a href="{{ R }}draw" class="{{ 'on' if nav == 'draw' }}">几何作图</a>
+    <a href="{{ R }}weekly" class="{{ 'on' if nav == 'weekly' }}">家长周报</a>
     <a href="{{ R }}settings" class="{{ 'on' if nav == 'settings' }}">设置</a>
   </div>
 </nav>
@@ -50,6 +52,7 @@
   <p>掌握学习 · 刻意练习 · 间隔重复 · 错误驱动 · 批判性思维 · 因材施教</p>
 </footer>
 <script>window.APP_ROOT = "{{ R }}";</script>
-<script src="{{ R }}static/js/app.js?v=2.3.0"></script>
+<script src="{{ R }}static/js/app.js?v=2.4.0"></script>
+{% block scripts %}{% endblock %}
 </body>
 </html>

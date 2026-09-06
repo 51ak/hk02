@@ -114,7 +114,7 @@ def ai_solve_chinese(m, kp_name, grade, stage_name):
     correction = (m["correction"] or "").strip()
     logic = f"；逻辑/思路自评：{m['logic_type']}" if m["logic_type"] else ""
     user = (
-        f"【年级】{grade}（{stage_name}）\n"
+        f"【年级】{grade}（{stage_name}；教材版本：{textbook_of('chinese')}）\n"
         f"【文章与题目（印刷体识别，可能含OCR噪音，请智能复原文意）】\n{m['title']}\n\n"
         f"【黄曼清的作答（手写识别，往往被判错）】\n{my_answer}\n\n"
         f"【标准答案（红笔/彩色笔手写订正，或与题目同字体的印刷体答案；未提供则留空）】\n{correction or '未提供'}\n\n"
@@ -189,7 +189,7 @@ def ai_solve_mistake(m, kp_name, grade, stage_name):
     except Exception:
         photo_path = ""
     user = (
-        f"【年级】{grade}（{stage_name}）\n"
+        f"【年级】{grade}（{stage_name}；教材版本：{textbook_of(msubj)}）\n"
         f"【原题（印刷体识别，请以此为准解题）】{m['title']}\n"
         "(以上文字可能来自OCR，可能有识别噪音，请智能纠错理解题意)\n"
         + mine_block + corr_block +
@@ -409,6 +409,14 @@ def init_db():
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             subject TEXT NOT NULL, created TEXT, report TEXT DEFAULT ''
         );
+        CREATE TABLE IF NOT EXISTS subject_snap (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            day TEXT NOT NULL, subject TEXT NOT NULL, avg REAL
+        );
+        CREATE TABLE IF NOT EXISTS tools_log (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            kind TEXT NOT NULL, item_key TEXT NOT NULL, result REAL, created TEXT
+        );
         """
     )
     db.commit()
@@ -474,7 +482,8 @@ def init_db():
                 db.execute("INSERT INTO questions (kp_id, diff, text, answer) VALUES (?,?,?,?)", (kp_id, diff, text, answer))
         db.commit()
     defaults = {"stage": "cj", "exam_date": "", "target": "", "minutes": "40", "grade": "初二",
-                "name": "黄曼清", "region": "江苏南京", "hobbies": "马术、赛艇、钢琴"}
+                "name": "黄曼清", "region": "江苏南京", "hobbies": "马术、赛艇、钢琴",
+                "textbooks": json.dumps({k: v[0] for k, v in seed_data.TEXTBOOKS.items()}, ensure_ascii=False)}
     for k, v in defaults.items():
         db.execute("INSERT OR IGNORE INTO config (key, value) VALUES (?,?)", (k, v))
     db.commit()
@@ -674,11 +683,19 @@ def build_suggestions(stage):
 @app.before_request
 def auth():
     allow = request.path == "/login" or request.path.startswith("/static")
+    if request.path == "/weekly" and request.args.get("k", "") == weekly_token():
+        allow = True
     if allow:
         return None
     if not session.get("ok"):
-        return redirect("login")
+        return redirect(url_for_login())
+    snap_today()
     return None
+
+
+def url_for_login():
+    root = (request.script_root + "/") if request.script_root else "/"
+    return root + "login"
 
 
 _TAB_BY_PATH = {"dashboard": "hub", "practice": "practice", "quiz": "practice", "mistakes": "mistakes",
@@ -758,9 +775,36 @@ def inject_common():
     }
 
 
+def textbooks():
+    try:
+        return json.loads(cfg("textbooks", "{}"))
+    except Exception:
+        return {k: v[0] for k, v in seed_data.TEXTBOOKS.items()}
+
+
+def textbook_of(subject):
+    return textbooks().get(subject) or ""
+
+
+def snap_today():
+    if cfg("last_snap") == today_iso():
+        return
+    for code in seed_data.SUBJECTS:
+        if code == "math":
+            avg = q1("SELECT AVG(mastery) a FROM kp WHERE subject='math' AND stage=?", (cfg("stage", "cj"),))["a"]
+        else:
+            avg = q1("SELECT AVG(mastery) a FROM kp WHERE subject=?", (code,))["a"]
+        if avg is None:
+            continue
+        if not q1("SELECT id FROM subject_snap WHERE day=? AND subject=?", (today_iso(), code)):
+            run("INSERT INTO subject_snap (day, subject, avg) VALUES (?,?,?)", (today_iso(), code, round(avg, 1)))
+    set_cfg("last_snap", today_iso())
+
+
 def profile_text():
+    tb = textbook_of("math")
     return (f"学生：{cfg('name', '黄曼清')}，{cfg('region', '江苏南京')}，{cfg('grade', '初二')}"
-            f"（江苏教材体系）；兴趣特长：{cfg('hobbies', '马术、赛艇、钢琴')}；"
+            f"（江苏教材体系{('，数学' + tb) if tb else ''}）；兴趣特长：{cfg('hobbies', '马术、赛艇、钢琴')}；"
             f"性格特点：自信开朗、气质出众、爱运动爱艺术。")
 
 
@@ -1249,7 +1293,7 @@ def subject_gen_report(code):
     score_txt = "；".join(f"{s['date']}{s['kind']}{s['score']:g}/{s['full']:g}" for s in scores) or "暂无"
     assess_txt = "\n".join(f"- {seed_data.ASSESS_KIND_LABEL.get(a['kind'], a['kind'])}（{a['created'][:10]}）：{a['report'][:300]}" for a in assess) or "暂无"
     ask = (
-        f"{profile_text()}\n科目：【{meta['name']}】\n\n"
+        f"{profile_text()}\n科目：【{meta['name']}】（教材版本：{textbook_of(code)}）\n\n"
         f"板块掌握度：{board_txt}\n错因分布：{cause_txt}\n近期成绩：{score_txt}\n"
         f"近期测评结论：\n{assess_txt}\n\n"
         "请严格按以下小节输出，直接以方括号标题开头：\n"
@@ -1270,13 +1314,139 @@ def subject_gen_report(code):
     return redirect(f"../{code}/report")
 
 
+def weekly_token():
+    with open(KEY_PATH) as f:
+        key = f.read().strip()
+    import hashlib
+    return hashlib.sha256((key + "|weekly").encode()).hexdigest()[:20]
+
+
+@app.route("/weekly")
+def weekly():
+    shared = request.args.get("k", "") == weekly_token()
+    week7 = (date.today() - timedelta(days=7)).isoformat()
+    like = today_iso()[:8] + "%"
+    def cnt7(table, col="created"):
+        return q1(f"SELECT COUNT(*) c FROM {table} WHERE {col} >= ?", (week7,))["c"]
+    stats = {
+        "practice": cnt7("practice_log"),
+        "review": cnt7("reviews_done"),
+        "mistakes": cnt7("mistakes"),
+        "thinking": cnt7("thinking_log"),
+        "assess": q1("SELECT COUNT(*) c FROM assessments WHERE done=1 AND created >= ?", (week7,))["c"],
+    }
+    subj_rows = []
+    for code, meta in seed_data.SUBJECTS.items():
+        if code == "math":
+            avg = q1("SELECT AVG(mastery) a FROM kp WHERE subject='math' AND stage=?", (cfg("stage", "cj"),))["a"]
+        else:
+            avg = q1("SELECT AVG(mastery) a FROM kp WHERE subject=?", (code,))["a"]
+        if avg is None:
+            continue
+        snap = q1("SELECT avg FROM subject_snap WHERE subject=? AND day<=? ORDER BY day DESC LIMIT 1",
+                  (code, week7))
+        delta = round(avg - snap["avg"], 1) if snap else None
+        weak = q("SELECT name FROM kp WHERE subject=? ORDER BY mastery ASC LIMIT 1", (code,))
+        subj_rows.append({"name": meta["name"], "icon": meta["icon"], "c1": meta["c1"], "c2": meta["c2"],
+                          "avg": round(avg, 1), "delta": delta, "weak": weak[0]["name"] if weak else ""})
+    subj_rows.sort(key=lambda r: -(r["delta"] or 0))
+    scores = q("SELECT * FROM scores WHERE date >= ? ORDER BY date", (week7,))
+    highlights, advice = [], []
+    if stats["review"]:
+        highlights.append(f"本周完成 {stats['review']} 次错题复习，间隔重复节奏保持得不错")
+    if stats["thinking"]:
+        highlights.append(f"完成 {stats['thinking']} 道思维训练题，逻辑肌肉持续在线")
+    if any(r["delta"] and r["delta"] >= 2 for r in subj_rows):
+        up = [f"{r['name']}(+{r['delta']})" for r in subj_rows if r["delta"] and r["delta"] >= 2]
+        highlights.append("掌握度显著提升：" + "、".join(up))
+    if stats["mistakes"]:
+        advice.append(f"新增 {stats['mistakes']} 道错题，建议 48 小时内完成 AI 精讲与归因")
+    if stats["practice"] < 20:
+        advice.append("练习量还可以再加一点：每天一组（10 题）效果最佳")
+    if not advice:
+        advice.append("节奏很好，保持当前习惯即可")
+    return render_template("weekly.html", stats=stats, subj_rows=subj_rows, scores=scores,
+                           highlights=highlights, advice=advice, shared=shared,
+                           token=weekly_token(), week7=week7)
+
+
+@app.route("/weekly_ai", methods=["POST"])
+def weekly_ai():
+    data = []
+    for code, meta in seed_data.SUBJECTS.items():
+        if code == "math":
+            avg = q1("SELECT AVG(mastery) a FROM kp WHERE subject='math' AND stage=?", (cfg("stage", "cj"),))["a"]
+        else:
+            avg = q1("SELECT AVG(mastery) a FROM kp WHERE subject=?", (code,))["a"]
+        if avg is not None:
+            data.append(f"{meta['name']}掌握度{avg:.0f}")
+    week7 = (date.today() - timedelta(days=7)).isoformat()
+    n_pr = q1("SELECT COUNT(*) c FROM practice_log WHERE created >= ?", (week7,))["c"]
+    n_rv = q1("SELECT COUNT(*) c FROM reviews_done WHERE created >= ?", (week7,))["c"]
+    n_th = q1("SELECT COUNT(*) c FROM thinking_log WHERE created >= ?", (week7,))["c"]
+    n_mk = q1("SELECT COUNT(*) c FROM mistakes WHERE created >= ?", (week7,))["c"]
+    ask = (
+        f"{profile_text()}\n本周数据：练习 {n_pr} 题、复习 {n_rv} 次、思维训练 {n_th} 题、新增错题 {n_mk} 道；"
+        f"各科掌握度：{'；'.join(data)}。\n\n"
+        "请以班主任口吻写一段给家长的周评（150~250字）：先肯定亮点（结合她的兴趣与性格），"
+        "再委婉指出 1 个需要关注的点，最后给家长 1 条可操作的家庭配合建议。真诚具体，不说套话。"
+    )
+    content, err = ai_chat([{"role": "system", "content": "你是了解学生的班主任，评语温暖而有分寸。"},
+                            {"role": "user", "content": ask}], max_tokens=800)
+    if err:
+        return jsonify({"ok": False, "msg": "AI 评语生成失败：" + err})
+    return jsonify({"ok": True, "text": content.strip()})
+
+
+TOOL_KINDS = {"formula": "数学公式", "poem": "古诗文", "word": "英语词卡"}
+
+
+@app.route("/toolbox")
+def toolbox():
+    kind = request.args.get("tab", "formula")
+    if kind not in TOOL_KINDS:
+        kind = "formula"
+    stats = {r["item_key"]: (r["n"], r["rig"]) for r in q(
+        "SELECT item_key, COUNT(*) n, SUM(CASE WHEN result >= 1 THEN 1 ELSE 0 END) rig FROM tools_log GROUP BY item_key")}
+    items = []
+    if kind == "formula":
+        for mod, name, formula, note in seed_data.MATH_FORMULAS:
+            k = name
+            s = stats.get(k)
+            items.append({"key": k, "front": f"{mod} · {name}", "back": formula, "note": note,
+                          "n": s[0] if s else 0, "rate": round(s[1] * 100 / s[0]) if s and s[0] else None})
+    elif kind == "poem":
+        for title, author, line, theme in seed_data.CLASSIC_POEMS:
+            s = stats.get(title)
+            items.append({"key": title, "front": f"《{title}》· {author}", "back": line, "note": theme,
+                          "n": s[0] if s else 0, "rate": round(s[1] * 100 / s[0]) if s and s[0] else None})
+    else:
+        for w, meaning in seed_data.WORD_CORE:
+            s = stats.get(w)
+            items.append({"key": w, "front": w, "back": meaning, "note": "",
+                          "n": s[0] if s else 0, "rate": round(s[1] * 100 / s[0]) if s and s[0] else None})
+    items.sort(key=lambda x: (x["rate"] is not None and x["rate"] >= 80, x["rate"] is not None, x["key"]))
+    return render_template("toolbox.html", kind=kind, kinds=TOOL_KINDS, items=items)
+
+
+@app.route("/tool_rate", methods=["POST"])
+def tool_rate():
+    kind = request.form.get("kind", "")
+    key = request.form.get("key", "")
+    result = request.form.get("result", type=float)
+    if kind in TOOL_KINDS and key and result in (0, 0.5, 1):
+        run("INSERT INTO tools_log (kind, item_key, result, created) VALUES (?,?,?,?)",
+            (kind, key[:60], result, now_iso()))
+    return redirect("toolbox?tab=" + kind)
+
+
 def gen_questions_ai(subject_code, kind):
     meta = seed_data.SUBJECTS.get(subject_code, {})
     n = 5 if kind == "practice" else 6
     if kind in ("subject", "practice"):
         purpose = "一套学科摸底卷" if kind == "subject" else "一组课后专项练习"
         ask = (
-            f"请为{profile_text()}出{purpose}【{meta.get('name', subject_code)}】共 {n} 题，"
+            f"请为{profile_text()}出{purpose}【{meta.get('name', subject_code)}】（教材版本：{textbook_of(subject_code)}）共 {n} 题，"
             f"覆盖板块：{'、'.join(meta.get('boards', []))}，难度由易到难阶梯分布。"
             "其中至少 1 题情境结合她的兴趣（马术/赛艇/钢琴），让题目亲切有趣。"
             "题型以简答为主（可含 1 道默写/计算/赏析）。"
@@ -1374,6 +1544,7 @@ def ai_grade_assessment(a, answers):
         lines.append(f"第{i}题（板块：{qs.get('board', '')}）：{qs['text']}\n参考答案：{qs.get('ref', '')}\n她的作答：{ans or '（未作答）'}")
     ask = (
         f"{profile_text()}\n"
+        f"教材版本：{textbook_of(a['subject'])}\n"
         f"测评类型：{meta.get('name', '')}{kind_name}\n\n以下是逐题信息（题目/参考答案/她的作答）：\n" +
         "\n\n".join(lines) +
         "\n\n请严格按以下小节输出，直接以方括号标题开头：\n"
@@ -1807,6 +1978,12 @@ def settings():
             set_cfg("name", (request.form.get("name", "") or "黄曼清").strip()[:20])
             set_cfg("region", (request.form.get("region", "") or "江苏南京").strip()[:20])
             set_cfg("hobbies", (request.form.get("hobbies", "") or "马术、赛艇、钢琴").strip()[:100])
+            tbs = {}
+            for code in seed_data.TEXTBOOKS:
+                v = request.form.get("tb_" + code, "").strip()
+                if v:
+                    tbs[code] = v
+            set_cfg("textbooks", json.dumps(tbs, ensure_ascii=False))
             set_cfg("exam_date", request.form.get("exam_date", ""))
             set_cfg("target", request.form.get("target", "").strip())
             set_cfg("minutes", str(clamp(request.form.get("minutes", 40, type=int) or 40, 10, 300)))
@@ -1827,7 +2004,8 @@ def settings():
                            grade=cfg("grade", "初二"),
                            grades=["初一", "初二", "初三", "高一", "高二", "高三"],
                            name=cfg("name", "黄曼清"), region=cfg("region", "江苏南京"),
-                           hobbies=cfg("hobbies", "马术、赛艇、钢琴"))
+                           hobbies=cfg("hobbies", "马术、赛艇、钢琴"),
+                           tb=seed_data.TEXTBOOKS, cur_tb=textbooks())
 
 
 init_db()
