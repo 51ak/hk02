@@ -16,16 +16,16 @@
   {% if m.ai_answer %}
   <div class="ai-result">
     <div class="ai-block ans">
-      <h3>✅ 正确答案与解答</h3>
+      <h3>{{ '🎯 考察点与标准答案' if m.subject == 'chinese' else '✅ 正确答案与解答' }}</h3>
       <p class="pre">{{ m.ai_answer }}</p>
     </div>
     <div class="ai-block analysis">
-      <h3>🔍 错因深度分析</h3>
+      <h3>{{ '🔍 答案对比——差距在哪' if m.subject == 'chinese' else '🔍 错因深度分析' }}</h3>
       <p class="pre">{{ m.ai_analysis or '（未生成，可点下方重新生成）' }}</p>
     </div>
     {% if m.ai_advice %}
     <div class="ai-block advice">
-      <h3>🧠 思维训练建议</h3>
+      <h3>{{ '📝 答题方法与提升建议' if m.subject == 'chinese' else '🧠 思维训练建议' }}</h3>
       <p class="pre">{{ m.ai_advice }}</p>
     </div>
     {% endif %}
@@ -48,28 +48,32 @@
   </div>
   <div id="aiResult" style="display:none" class="ai-result">
     <div class="ai-block ans">
-      <h3>✅ 正确答案与解答</h3>
+      <h3 id="aiAnsTitle">{{ '🎯 考察点与标准答案' if m.subject == 'chinese' else '✅ 正确答案与解答' }}</h3>
       <p class="pre" id="aiAns"></p>
     </div>
     <div class="ai-block analysis">
-      <h3>🔍 错因深度分析</h3>
+      <h3>{{ '🔍 答案对比——差距在哪' if m.subject == 'chinese' else '🔍 错因深度分析' }}</h3>
       <p class="pre" id="aiAnalysis"></p>
     </div>
     <div class="ai-block advice">
-      <h3>🧠 思维训练建议</h3>
+      <h3>{{ '📝 答题方法与提升建议' if m.subject == 'chinese' else '🧠 思维训练建议' }}</h3>
       <p class="pre" id="aiAdvice"></p>
     </div>
     <p class="tiny">已自动存入错题记录，复习时会再次展示。</p>
   </div>
   {% endif %}
   <div class="btn-row" style="margin-top:14px">
-    <a class="btn ghost" href="mistakes">回错题本</a>
+    <a class="btn ghost" href="mistakes?subject={{ m.subject or 'math' }}">回错题本</a>
+    {% if m.subject == 'chinese' %}
+    <a class="btn ghost" href="subject/chinese">回语文空间</a>
+    {% else %}
     <form method="post" action="practice_start" class="inline-form">
       <input type="hidden" name="mode" value="weak">
       <input type="hidden" name="count" value="5">
       <button class="btn" type="submit">针对该弱点再练 5 题</button>
     </form>
     <a class="btn ghost" href="thinking">🧠 去做思维训练</a>
+    {% endif %}
   </div>
 </div>
 <script>
@@ -90,7 +94,8 @@
         if (d.ok) {
           var text = '';
           if (d.figure) text += '【图形识别】' + d.figure + '\n\n';
-          text += d.steps ? (d.answer + '\n\n【解答过程】\n' + d.steps) : d.answer;
+          if (d.steps) text += (d.answer ? d.answer + '\n\n' : '') + ({{ ('true' if m.subject == 'chinese' else 'false') | safe }} ? '【标准答案】\n' : '【解答过程】\n') + d.steps;
+          else text += d.answer || '';
           document.getElementById('aiAns').textContent = text;
           document.getElementById('aiAnalysis').textContent = d.analysis || '（未生成，可点击重新生成）';
           document.getElementById('aiAdvice').textContent = d.advice || '（未生成）';

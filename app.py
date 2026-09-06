@@ -80,17 +80,17 @@ def ai_chat(messages, max_tokens=3000, timeout=120):
     return None, (last_err or "网关无响应") + "（已重试）"
 
 
-def _sections(text):
-    marks = ["【图形识别】", "【正确答案】", "【解答过程】", "【错因深度分析】", "【思维训练建议】"]
-    out = {"figure": "", "answer": "", "steps": "", "analysis": "", "advice": ""}
-    keys = ["figure", "answer", "steps", "analysis", "advice"]
+def _sections(text, marks=None, keys=None):
+    if marks is None:
+        marks = ["【图形识别】", "【正确答案】", "【解答过程】", "【错因深度分析】", "【思维训练建议】"]
+        keys = ["figure", "answer", "steps", "analysis", "advice"]
+    out = {k: "" for k in keys}
     pos = []
     for mk in marks:
-        i = text.find(mk)
-        pos.append(i)
-    if pos[1] < 0 and pos[0] < 0:
+        pos.append(text.find(mk))
+    if all(p < 0 for p in pos):
         return None
-    for n in range(5):
+    for n in range(len(marks)):
         if pos[n] < 0:
             continue
         start = pos[n] + len(marks[n])
@@ -99,7 +99,78 @@ def _sections(text):
     return out
 
 
+def _complete(s):
+    return bool(s) and s.rstrip().endswith(("。", "！", "？", ".", "）", ")", "：", ":"))
+
+
+CHINESE_MARKS = ["【考察点】", "【标准答案】", "【答案对比】", "【答题方法】", "【提升建议】"]
+CHINESE_KEYS = ["kaodian", "standard", "duibi", "method", "advice"]
+
+
+def ai_solve_chinese(m, kp_name, grade, stage_name):
+    my_answer = (m["answer"] or "").strip() or "未提供"
+    correction = (m["correction"] or "").strip()
+    logic = f"；逻辑/思路自评：{m['logic_type']}" if m["logic_type"] else ""
+    user = (
+        f"【年级】{grade}（{stage_name}）\n"
+        f"【文章与题目（印刷体识别，可能含OCR噪音，请智能复原文意）】\n{m['title']}\n\n"
+        f"【黄曼清的作答（手写识别，往往被判错）】\n{my_answer}\n\n"
+        f"【标准答案（红笔/彩色笔手写订正，或与题目同字体的印刷体答案；未提供则留空）】\n{correction or '未提供'}\n\n"
+        f"【她的错误原因自评】{m['cause']}{logic}（仅供参考，请独立分析）\n\n"
+        "请严格按以下五个小节输出，直接以方括号标题开头，不要输出其他任何内容：\n"
+        "【考察点】先讲这篇文章：文体、内容主旨；再逐题说明命题人想考察什么能力"
+        "（如内容概括、词句理解与赏析、语句段落作用、写作手法、主旨情感、拓展启示），用她能听懂的话讲“为什么出这道题”\n"
+        "【标准答案】逐题列出标准答案要点（优先综合图片中的红笔订正与印刷体标准答案；"
+        "若未提供标准答案，给出你依据原文拟出的答案并注明“自拟”）\n"
+        "【答案对比】逐题把她的作答与标准答案对照，判定问题类型并说明理由——"
+        "方向不正确 / 不够完整（缺哪些采分点）/ 不够深入（漏了什么角度、没结合原文）/ 表述不规范；"
+        "直接引用她的原话指出具体差距，不空泛\n"
+        "【答题方法】针对每道题的题型给出可复用的答题框架与步骤"
+        "（如赏析题=判断手法+结合原文分析+表达效果+情感主旨），并教她如何回原文定位依据\n"
+        "【提升建议】2~3 条针对她这次作答暴露出的阅读习惯或思维方式的训练建议，结合作答证据，可结合她的兴趣特长"
+    )
+    content, err = ai_chat([
+        {"role": "system", "content": "你是一名经验丰富的初中语文教师，尤其精通阅读理解精讲：善于一针见血地指出学生答案与标准答案的差距，并把考点和答题方法讲得透彻易懂。"},
+        {"role": "user", "content": user},
+    ])
+    if err:
+        return None, err
+    sec = _sections(content, CHINESE_MARKS, CHINESE_KEYS)
+    if sec is None:
+        sec = {k: "" for k in CHINESE_KEYS}
+        sec["kaodian"] = content.strip()[:3000]
+    if not _complete(sec["duibi"]) or not _complete(sec["method"]) or not _complete(sec["advice"]):
+        extra, err2 = ai_chat([
+            {"role": "system", "content": "你是语文阅读理解精讲教师。"},
+            {"role": "user", "content": (
+                f"【年级】{grade}\n【文章与题目】{m['title'][:1200]}\n【她的作答】{my_answer[:600]}\n"
+                f"【标准答案】{(correction or '未提供')[:600]}\n\n"
+                "请严格按三个小节输出：【答案对比】逐题判定她的作答属于方向不正确/不够完整/不够深入/表述不规范，引用原话指出差距；"
+                "【答题方法】每题的答题框架；【提升建议】2~3条。"
+            )},
+        ], max_tokens=2000)
+        if not err2 and extra:
+            sec2 = _sections(extra, ["【答案对比】", "【答题方法】", "【提升建议】"], ["duibi", "method", "advice"])
+            if sec2:
+                for k in ("duibi", "method", "advice"):
+                    sec[k] = sec[k] or sec2[k]
+    return sec, None
+
+
 def ai_solve_mistake(m, kp_name, grade, stage_name):
+    msubj = m["subject"] if "subject" in (m.keys() if hasattr(m, "keys") else []) else "math"
+    if msubj == "chinese":
+        sec, err = ai_solve_chinese(m, kp_name, grade, stage_name)
+        if err:
+            return None, err
+        return {
+            "figure": "",
+            "answer": sec.get("kaodian", ""),
+            "steps": sec.get("standard", ""),
+            "analysis": sec.get("duibi", ""),
+            "advice": ("\n\n".join(x for x in ("【答题方法】\n" + sec["method"] if sec.get("method") else "",
+                                              "【提升建议】\n" + sec["advice"] if sec.get("advice") else "") if x)).strip(),
+        }, None
     my_answer = (m["answer"] or "").strip() or "未提供"
     correction = ""
     row = m.keys() if hasattr(m, "keys") else []
@@ -182,13 +253,19 @@ def ai_solve_mistake(m, kp_name, grade, stage_name):
     return sec, None
 
 
-def _fmt_ai_answer(result):
+def _fmt_ai_answer(result, chinese=False):
     parts = []
-    if result.get("figure"):
-        parts.append("【图形识别】" + result["figure"])
-    parts.append(result.get("answer", ""))
-    if result.get("steps"):
-        parts.append("【解答过程】\n" + result["steps"])
+    if chinese:
+        if result.get("answer"):
+            parts.append("【考察点】" + result["answer"])
+        if result.get("steps"):
+            parts.append("【标准答案】\n" + result["steps"])
+    else:
+        if result.get("figure"):
+            parts.append("【图形识别】" + result["figure"])
+        parts.append(result.get("answer", ""))
+        if result.get("steps"):
+            parts.append("【解答过程】\n" + result["steps"])
     return "\n\n".join(p for p in parts if p)
 
 
@@ -846,11 +923,12 @@ def ai_solve():
         return jsonify({"ok": False, "msg": "错题不存在"}), 404
     stage_name = seed_data.STAGES.get(m["stage"], m["stage"])
     grade = cfg("grade", "初二")
+    msubj = m["subject"] or "math"
     result, err = ai_solve_mistake(m, m["kp_name"], grade, stage_name)
     if err:
         return jsonify({"ok": False, "msg": "AI 解答失败：" + err + "，可稍后重试"})
     run("UPDATE mistakes SET ai_answer=?, ai_analysis=?, ai_advice=? WHERE id=?",
-        (_fmt_ai_answer(result), result["analysis"], result["advice"], mid))
+        (_fmt_ai_answer(result, chinese=(msubj == "chinese")), result["analysis"], result["advice"], mid))
     return jsonify({"ok": True, **result})
 
 
@@ -862,10 +940,11 @@ def ai_solve_form():
     m = q1("""SELECT m.*, kp.name kp_name, kp.module, kp.stage FROM mistakes m JOIN kp ON m.kp_id=kp.id WHERE m.id=?""", (mid,))
     stage_name = seed_data.STAGES.get(m["stage"], m["stage"])
     grade = cfg("grade", "初二")
+    msubj = m["subject"] or "math"
     result, err = ai_solve_mistake(m, m["kp_name"], grade, stage_name)
     if not err:
         run("UPDATE mistakes SET ai_answer=?, ai_analysis=?, ai_advice=? WHERE id=?",
-            (_fmt_ai_answer(result), result["analysis"], result["advice"], mid))
+            (_fmt_ai_answer(result, chinese=(msubj == "chinese")), result["analysis"], result["advice"], mid))
     return redirect("solve?id=" + str(mid))
 
 
@@ -897,12 +976,13 @@ def vision_split(photo_path):
             b64 = base64.b64encode(f.read()).decode()
         prompt = (
             "你是专业的试卷识别助手。请把图片内容按三类分开转录：\n"
-            "1) original——印刷体题目文字（原题，黑色印刷）；\n"
+            "1) original——印刷体文字：文章原文、题目题干（黑色印刷为主）；\n"
             "2) mine——学生手写作答（蓝色或黑色手写笔迹，含草稿演算）；\n"
-            "3) correction——订正/批改内容（红色笔迹、对勾叉号旁的改正等）。\n"
+            "3) correction——正确答案：①红色或其他颜色笔手写的订正/批改；"
+            "②也可能是与题目相同印刷字体的“标准答案”（答案栏/答案页/教师用书样式）——同样归入此类，并注明“（印刷体标准答案）”。\n"
             '只输出一个JSON：{"original":"...","mine":"...","correction":"..."}，'
             "没有的类别留空字符串；每类文字按阅读顺序排列，换行用\\n；"
-            "数学式尽量按原样保留（如分数写为 a/b，根号写为√）；识别不确定的字用？标注。"
+            "文章较长的请完整转录不要省略；数学式尽量按原样保留（分数写为 a/b，根号写为√）；识别不确定的字用？标注。"
         )
         last_err = None
         for attempt in range(2):
@@ -912,7 +992,7 @@ def vision_split(photo_path):
                     {"type": "text", "text": prompt},
                     {"type": "image_url", "image_url": {"url": "data:image/jpeg;base64," + b64}},
                 ]},
-            ], max_tokens=3000)
+            ], max_tokens=3500)
             if err:
                 last_err = err
                 continue
