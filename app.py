@@ -2002,7 +2002,8 @@ def ceping_submit():
     if err:
         return render_template("assess_do.html", a=a, questions=questions,
                                meta=seed_data.SUBJECTS.get(a["subject"], {}), story_meta=None,
-                               error="AI 批改失败：" + err + "，请重试提交")
+                               prev_answers=answers,
+                               error="AI 批改失败：" + err + "，请重试提交（你的作答已保留）")
     run("UPDATE assessments SET answers=?, report=?, done=1 WHERE id=?",
         (json.dumps(answers, ensure_ascii=False), report, aid))
     if a["kind"] == "story":

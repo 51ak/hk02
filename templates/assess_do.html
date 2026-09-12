@@ -19,14 +19,14 @@
   {% endif %}
   {% if error %}<p class="alert">{{ error }}</p>{% endif %}
   <p class="tiny">{{ '完成本章三道关卡，写下你的答案推进剧情' if story_meta else '共 ' ~ (questions | length) ~ ' 题，按真实水平作答即可——测评的目的是了解你，不是考倒你。提交后 AI 逐题批改并生成能力画像与定制方案。' }}</p>
-  <form method="post" action="{{ R }}ceping_submit">
+  <form method="post" action="{{ R }}ceping_submit" id="assessForm" onsubmit="return checkAssess()">
     <input type="hidden" name="id" value="{{ a.id }}">
     {% for qs in questions %}
     <div class="q-item">
       <p class="q-title"><b>关卡 {{ loop.index }}</b>{% if not story_meta %} <span class="tag">{{ qs.board }}</span>{% endif %}</p>
       <p class="q-text">{{ qs.text }}</p>
       <label class="q-ans">你的作答
-        <textarea name="q{{ loop.index }}" rows="{{ 3 if story_meta else 3 }}" placeholder="{{ '写下你的答案…' if story_meta else '写下你的答案/思路（思维题写推理过程更有利于画像）' }}"></textarea>
+        <textarea name="q{{ loop.index }}" rows="{{ 3 if story_meta else 3 }}" placeholder="{{ '写下你的答案…' if story_meta else '写下你的答案/思路（思维题写推理过程更有利于画像）' }}">{{ prev_answers[loop.index0] if prev_answers and prev_answers[loop.index0] else '' }}</textarea>
       </label>
     </div>
     {% endfor %}
@@ -35,4 +35,19 @@
     </div>
   </form>
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function checkAssess() {
+  var empt = 0;
+  document.querySelectorAll('#assessForm textarea').forEach(function (t) {
+    if (!t.value.trim()) empt++;
+  });
+  if (empt > 0) {
+    return window.confirm('还有 ' + empt + ' 题未作答，确定要提交吗？\n（未作答的题会被判为空，建议先补全）');
+  }
+  return true;
+}
+</script>
 {% endblock %}
