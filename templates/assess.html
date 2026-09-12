@@ -43,7 +43,11 @@
       <td>{{ '✅ 已完成' if h.done else '⏳ 未完成' }}</td>
       <td>
         {% if h.done %}<a class="btn ghost sm" href="{{ R }}ceping_result?id={{ h.id }}">报告</a>
-        {% else %}<a class="btn ghost sm" href="{{ R }}ceping_do?id={{ h.id }}">继续</a>{% endif %}
+        {% else %}<a class="btn ghost sm" href="{{ R }}ceping_do?id={{ h.id }}">继续作答</a>
+        <form method="post" action="{{ R }}ceping_delete" class="inline-form" onsubmit="return confirm('删除这份未完成的测评？')">
+          <input type="hidden" name="id" value="{{ h.id }}">
+          <button class="link-btn" type="submit">删除</button>
+        </form>{% endif %}
       </td>
     </tr>
     {% endfor %}

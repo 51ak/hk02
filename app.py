@@ -1764,6 +1764,16 @@ def ceping_fill_submit():
     return redirect("ceping_result?id=" + str(aid) + "&gx=15" + (f"&lv={lv}" if leveled else ""))
 
 
+@app.route("/ceping_delete", methods=["POST"])
+def ceping_delete():
+    aid = request.form.get("id", type=int)
+    if aid:
+        row = q1("SELECT done FROM assessments WHERE id=?", (aid,))
+        if row and not row["done"]:
+            run("DELETE FROM assessments WHERE id=?", (aid,))
+    return redirect("ceping")
+
+
 def weekly_token():
     with open(KEY_PATH) as f:
         key = f.read().strip()
