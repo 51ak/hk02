@@ -1719,6 +1719,56 @@ def plainify(text):
     return t.strip()
 
 
+@app.route("/ceping_fill")
+def ceping_fill():
+    aid = request.args.get("id", type=int)
+    a = q1("SELECT * FROM assessments WHERE id=?", (aid,))
+    if not a or not a["done"]:
+        abort(404)
+    questions = json.loads(a["questions"])
+    answers = json.loads(a["answers"])
+    empty_idx = [i for i, x in enumerate(answers) if not str(x).strip()]
+    if not empty_idx:
+        return redirect("ceping_result?id=" + str(aid))
+    story_meta = None
+    if a["kind"] == "story":
+        theme = a["subject"][6:] if a["subject"].startswith("story:") else ""
+        story_meta = {"theme": STORY_THEMES.get(theme, {}), "code": theme}
+    return render_template("fill.html", a=a, questions=questions, answers=answers,
+                           empty_idx=empty_idx, story_meta=story_meta,
+                           meta=seed_data.SUBJECTS.get(a["subject"], {}))
+
+
+@app.route("/ceping_fill_submit", methods=["POST"])
+def ceping_fill_submit():
+    aid = request.form.get("id", type=int)
+    a = q1("SELECT * FROM assessments WHERE id=?", (aid,))
+    if not a or not a["done"]:
+        abort(404)
+    questions = json.loads(a["questions"])
+    answers = json.loads(a["answers"])
+    changed = False
+    for i, x in enumerate(answers):
+        if str(x).strip():
+            continue
+        v = request.form.get(f"e{i}", "").strip()
+        if v:
+            answers[i] = v
+            changed = True
+    if not changed:
+        return redirect("ceping_result?id=" + str(aid))
+    report, err = ai_grade_assessment(a, answers)
+    if err:
+        return render_template("fill.html", a=a, questions=questions, answers=answers,
+                               empty_idx=[i for i, x in enumerate(answers) if not str(x).strip()],
+                               story_meta=None, meta=seed_data.SUBJECTS.get(a["subject"], {}),
+                               error="AI 重新批改失败：" + err + "，请重试（你的补答已保留在表单中）")
+    run("UPDATE assessments SET answers=?, report=? WHERE id=?",
+        (json.dumps(answers, ensure_ascii=False), report, aid))
+    leveled, lv = add_xp(15, "补答完成")
+    return redirect("ceping_result?id=" + str(aid) + "&gx=15" + (f"&lv={lv}" if leveled else ""))
+
+
 def weekly_token():
     with open(KEY_PATH) as f:
         key = f.read().strip()

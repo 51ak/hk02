@@ -4,6 +4,13 @@
 <div class="card hero-report">
   <h2>{{ (story_meta.theme.icon ~ " " ~ story_meta.theme.name ~ " · 本章结局") if story_meta else ((meta.name if meta else "") ~ " · " ~ kind_name ~ "报告") }}</h2>
   <p class="tiny">{{ a.created }} · {{ student_name }} · {{ region }}</p>
+  {% set empty_n = answers | select('equalto', '') | list | length %}
+  {% if empty_n %}
+  <div class="fill-banner">
+    <span>⚠️ 有 {{ empty_n }} 题未保存到作答（可能当时网络中断）</span>
+    <a class="btn sm" href="{{ R }}ceping_fill?id={{ a.id }}">补答这几题，重新生成报告 →</a>
+  </div>
+  {% endif %}
   <div class="report-body pre">{{ plainify(a.report) }}</div>
 </div>
 <div class="card">

@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% block title %}补答缺失题目 · {{ site_name }}{% endblock %}
+{% block content %}
+<div class="card quiz-card" style="max-width:760px">
+  <h2>✏️ 补答缺失题目</h2>
+  {% if error %}<p class="alert">{{ error }}</p>{% endif %}
+  <p class="tiny">这份测评有 <b>{{ empty_idx | length }}</b> 题当时未保存到作答（可能因网络中断）。只需补填你还记得答案的题，AI 将重新批改并生成完整报告——<b>不用重做整份</b>。记不清的可以留空跳过。</p>
+  {% for i in range(questions | length) %}
+  {% if i in empty_idx %}
+  <div class="q-item">
+    <p class="q-title"><b>第{{ i + 1 }}题</b> <span class="tag">待补答</span>{% if questions[i].board %} <span class="tag">{{ questions[i].board }}</span>{% endif %}</p>
+    <p class="q-text">{{ questions[i].text }}</p>
+    <label class="q-ans">你的作答
+      <textarea name="e{{ i }}" rows="2" placeholder="写下你当时的答案/思路"></textarea>
+    </label>
+  </div>
+  {% else %}
+  <div class="q-item doneq">
+    <p class="q-title"><b>第{{ i + 1 }}题</b> <span class="tag">已作答</span></p>
+    <p class="q-text">{{ questions[i].text[:80] }}{% if questions[i].text | length > 80 %}…{% endif %}</p>
+    <p class="tiny">你的作答：{{ answers[i] }}</p>
+  </div>
+  {% endif %}
+  {% endfor %}
+  <form method="post" action="{{ R }}ceping_fill_submit">
+    <input type="hidden" name="id" value="{{ a.id }}">
+    <div class="btn-row">
+      <button class="btn" type="submit">提交补答，重新生成报告</button>
+      <a class="btn ghost" href="{{ R }}ceping_result?id={{ a.id }}">返回报告</a>
+    </div>
+  </form>
+</div>
+{% endblock %}
