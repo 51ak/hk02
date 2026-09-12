@@ -872,6 +872,7 @@ def inject_common():
         "nav": segs[0] if segs else "home",
         "exam_days": days_to_exam(),
         "mastery_label": mastery_label,
+        "plainify": plainify,
         "today": today_iso(),
         "now": now_iso(),
         "site_name": "黄曼清的AI全科学习系统",
