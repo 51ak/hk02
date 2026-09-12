@@ -1747,22 +1747,17 @@ def ceping_fill_submit():
         abort(404)
     questions = json.loads(a["questions"])
     answers = json.loads(a["answers"])
-    changed = False
-    for i, x in enumerate(answers):
-        if str(x).strip():
-            continue
-        v = request.form.get(f"e{i}", "").strip()
+    while len(answers) < len(questions):
+        answers.append("")
+    for i in range(len(questions)):
+        v = request.form.get(f"a{i}", "").strip()
         if v:
             answers[i] = v
-            changed = True
-    if not changed:
-        return redirect("ceping_result?id=" + str(aid))
     report, err = ai_grade_assessment(a, answers)
     if err:
         return render_template("fill.html", a=a, questions=questions, answers=answers,
-                               empty_idx=[i for i, x in enumerate(answers) if not str(x).strip()],
                                story_meta=None, meta=seed_data.SUBJECTS.get(a["subject"], {}),
-                               error="AI 重新批改失败：" + err + "，请重试（你的补答已保留在表单中）")
+                               error="AI 重新批改失败：" + err + "，请重试（你的作答已保留在表单中）")
     run("UPDATE assessments SET answers=?, report=? WHERE id=?",
         (json.dumps(answers, ensure_ascii=False), report, aid))
     leveled, lv = add_xp(15, "补答完成")

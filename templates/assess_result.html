@@ -7,8 +7,8 @@
   {% set empty_n = answers | select('equalto', '') | list | length %}
   {% if empty_n %}
   <div class="fill-banner">
-    <span>⚠️ 有 {{ empty_n }} 题未保存到作答（可能当时网络中断）</span>
-    <a class="btn sm" href="{{ R }}ceping_fill?id={{ a.id }}">补答这几题，重新生成报告 →</a>
+    <span>⚠️ 有 {{ empty_n }} 题答案缺失</span>
+    <a class="btn sm" href="{{ R }}ceping_fill?id={{ a.id }}">重现原题，重新填写答案 →</a>
   </div>
   {% endif %}
   <div class="report-body pre">{{ plainify(a.report) }}</div>

@@ -1,31 +1,23 @@
 {% extends "base.html" %}
-{% block title %}补答缺失题目 · {{ site_name }}{% endblock %}
+{% block title %}重新填写答案 · {{ site_name }}{% endblock %}
 {% block content %}
 <div class="card quiz-card" style="max-width:760px">
-  <h2>✏️ 补答缺失题目</h2>
+  <h2>✏️ 原题重现 · 重新填写答案</h2>
   {% if error %}<p class="alert">{{ error }}</p>{% endif %}
-  <p class="tiny">这份测评有 <b>{{ empty_idx | length }}</b> 题当时未保存到作答（可能因网络中断）。只需补填你还记得答案的题，AI 将重新批改并生成完整报告——<b>不用重做整份</b>。记不清的可以留空跳过。</p>
-  {% for i in range(questions | length) %}
-  {% if i in empty_idx %}
-  <div class="q-item">
-    <p class="q-title"><b>第{{ i + 1 }}题</b> <span class="tag">待补答</span>{% if questions[i].board %} <span class="tag">{{ questions[i].board }}</span>{% endif %}</p>
-    <p class="q-text">{{ questions[i].text }}</p>
-    <label class="q-ans">你的作答
-      <textarea name="e{{ i }}" rows="2" placeholder="写下你当时的答案/思路"></textarea>
-    </label>
-  </div>
-  {% else %}
-  <div class="q-item doneq">
-    <p class="q-title"><b>第{{ i + 1 }}题</b> <span class="tag">已作答</span></p>
-    <p class="q-text">{{ questions[i].text[:80] }}{% if questions[i].text | length > 80 %}…{% endif %}</p>
-    <p class="tiny">你的作答：{{ answers[i] }}</p>
-  </div>
-  {% endif %}
-  {% endfor %}
+  <p class="tiny">以下是这份测评的全部原题（顺序不变）。已保存的答案已自动带出，可直接修改；缺失的补上即可。提交后 AI 按最终答案重新批改生成报告。</p>
   <form method="post" action="{{ R }}ceping_fill_submit">
     <input type="hidden" name="id" value="{{ a.id }}">
+    {% for i in range(questions | length) %}
+    <div class="q-item">
+      <p class="q-title"><b>第{{ i + 1 }}题</b>{% if questions[i].board %} <span class="tag">{{ questions[i].board }}</span>{% endif %}{% if not answers[i] | default('') | trim %} <span class="tag">缺失待补</span>{% endif %}</p>
+      <p class="q-text">{{ questions[i].text }}</p>
+      <label class="q-ans">你的作答
+        <textarea name="a{{ i }}" rows="2" placeholder="写下你的答案/思路">{{ answers[i] if answers[i] is defined and answers[i] else '' }}</textarea>
+      </label>
+    </div>
+    {% endfor %}
     <div class="btn-row">
-      <button class="btn" type="submit">提交补答，重新生成报告</button>
+      <button class="btn" type="submit">提交，重新批改生成报告</button>
       <a class="btn ghost" href="{{ R }}ceping_result?id={{ a.id }}">返回报告</a>
     </div>
   </form>
