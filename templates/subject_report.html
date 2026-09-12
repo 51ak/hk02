@@ -61,8 +61,8 @@
 </div>
 {% endif %}
 
-<div class="card">
-  <h2>④ AI 深度分析与定制方案</h2>
+<div class="card" id="reportCard">
+  <h2>④ AI 深度分析与定制方案 <button class="btn ghost sm" type="button" style="margin-left:8px" onclick="shotCard('reportCard', '{{ meta.name }}报告.png')">📷 存图/分享</button></h2>
   {% if ai_error %}<p class="alert">AI 生成失败：{{ ai_error }}，请稍后重试。</p>{% endif %}
   {% if latest %}
   <p class="tiny">生成于 {{ latest.created }}</p>
@@ -78,4 +78,29 @@
     <span class="tiny">约需 10~30 秒，基于掌握度 / 错因 / 成绩 / 测评数据</span>
   </form>
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ R }}static/js/html2canvas.js"></script>
+
+<script>
+function shotCard(id, name) {
+  var el = document.getElementById(id);
+  if (!el || typeof html2canvas === 'undefined') { alert('组件未加载，请刷新重试'); return; }
+  html2canvas(el, {scale: 2, backgroundColor: '#f6f4fb', useCORS: true, logging: false}).then(function (canvas) {
+    canvas.toBlob(function (blob) {
+      var file = new File([blob], name, {type: 'image/png'});
+      if (navigator.canShare && navigator.canShare({files: [file]})) {
+        navigator.share({files: [file], title: name}).catch(function () {});
+      } else {
+        var a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = name;
+        a.click();
+        setTimeout(function () { URL.revokeObjectURL(a.href); }, 4000);
+      }
+    }, 'image/png');
+  }).catch(function () { alert('生成图片失败，请重试'); });
+}
+</script>
 {% endblock %}

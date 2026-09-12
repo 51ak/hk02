@@ -1,7 +1,12 @@
 {% extends "base.html" %}
 {% block title %}测评报告 · {{ site_name }}{% endblock %}
 {% block content %}
-<div class="card hero-report">
+<div class="card" id="reportCard" style="padding:26px 24px">
+<div class="btn-row" style="margin-bottom:10px">
+  <button class="btn ghost sm" type="button" onclick="shotCard('reportCard', '测评报告.png')">📷 存图/分享</button>
+  <p class="tiny">手机可直接分享到微信，电脑保存 PNG</p>
+</div>
+<div class="card hero-report" style="border:0;margin:0">
   <h2>{{ (story_meta.theme.icon ~ " " ~ story_meta.theme.name ~ " · 本章结局") if story_meta else ((meta.name if meta else "") ~ " · " ~ kind_name ~ "报告") }}</h2>
   <p class="tiny">{{ a.created }} · {{ student_name }} · {{ region }}</p>
   {% set empty_n = answers | select('equalto', '') | list | length %}
@@ -24,6 +29,8 @@
   </div>
   {% endfor %}
 </div>
+</div>
+</div>
 <div class="btn-row">
   {% if story_meta %}
   <form method="post" action="{{ R }}story_start" class="inline-form">
@@ -36,4 +43,29 @@
   <a class="btn ghost" href="{{ R }}{{ 'dashboard' if a.subject == 'math' else 'subject/' ~ a.subject }}">回学科主页</a>
   {% endif %}
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ R }}static/js/html2canvas.js"></script>
+
+<script>
+function shotCard(id, name) {
+  var el = document.getElementById(id);
+  if (!el || typeof html2canvas === 'undefined') { alert('组件未加载，请刷新重试'); return; }
+  html2canvas(el, {scale: 2, backgroundColor: '#f6f4fb', useCORS: true, logging: false}).then(function (canvas) {
+    canvas.toBlob(function (blob) {
+      var file = new File([blob], name, {type: 'image/png'});
+      if (navigator.canShare && navigator.canShare({files: [file]})) {
+        navigator.share({files: [file], title: name}).catch(function () {});
+      } else {
+        var a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = name;
+        a.click();
+        setTimeout(function () { URL.revokeObjectURL(a.href); }, 4000);
+      }
+    }, 'image/png');
+  }).catch(function () { alert('生成图片失败，请重试'); });
+}
+</script>
 {% endblock %}
