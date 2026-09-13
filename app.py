@@ -523,6 +523,10 @@ def init_db():
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             score INTEGER, total INTEGER, created TEXT
         );
+        CREATE TABLE IF NOT EXISTS chat_log (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            role TEXT NOT NULL, content TEXT NOT NULL, created TEXT
+        );
         """
     )
     db.commit()
@@ -1855,6 +1859,79 @@ def snap_check():
                            verdict=verdict, ans=sec.get("ans", ""), steps=sec.get("steps", ""),
                            comment=plainify(sec.get("comment", "")), is_right=is_right,
                            mb_url=f"mistakes?photo={_up.quote(photo_name)}&t={to_mb}&a={ao}", gx=gx)
+
+
+def teacher_context():
+    lines = [profile_text(), learned_scope_text()]
+    xpn = xp_total()
+    lv, title, _, _ = xp_level(xpn)
+    lines.append(f"游戏化数据：等级 Lv.{lv} {title}，总 XP {xpn}，连续学习 {streak_days()} 天")
+    stage = cfg("stage", "cj")
+    lines.append("各科掌握度：" + "；".join(
+        f"{meta['name']}{(q1('SELECT AVG(mastery) a FROM kp WHERE subject=?', (code,))['a'] or 0):.0f}"
+        for code, meta in seed_data.SUBJECTS.items()
+        if q1("SELECT COUNT(*) c FROM kp WHERE subject=?", (code,))["c"] > 0))
+    dist, total = cause_distribution(stage)
+    if total:
+        lines.append("数学错因分布：" + "；".join(f"{d['cause']}{d['c']}次" for d in dist[:5]))
+    lstats, ltotal = logic_stats(stage)
+    if ltotal:
+        lines.append("逻辑缺陷画像：" + "；".join(f"{s['t']}{s['c']}次" for s in lstats[:4]))
+    for a in q("SELECT kind, subject, created, report FROM assessments WHERE done=1 ORDER BY id DESC LIMIT 3"):
+        kn = seed_data.ASSESS_KIND_LABEL.get(a["kind"], a["kind"])
+        subj = seed_data.SUBJECTS.get(a["subject"], {}).get("name", "")
+        clip = plainify(a["report"])[:150].replace("\n", " ")
+        lines.append(f"最近测评[{kn}{subj} {a['created'][:10]}]：{clip}")
+    for r in q("SELECT m.title, m.cause, k.name FROM mistakes m JOIN kp k ON m.kp_id=k.id ORDER BY m.id DESC LIMIT 5"):
+        lines.append(f"最近错题[{r['name']}/{r['cause']}]：{r['title'][:40]}")
+    return "\n".join(lines)
+
+
+TEACHER_SYSTEM = (
+    "你是「全能老师」，黄曼清的私人全科导师：精通初中/高中所有科目，讲解深入浅出、循循善诱。"
+    "你掌握她的学习档案（掌握度、错题、测评、逻辑画像等数据），回答时要结合这些数据因材施教："
+    "涉及她薄弱科目的知识问题时主动关联她的错题与掌握度；她在的年级范围外的知识先确认是否需要拓展。"
+    "数学公式用纯文本写（如 x²−4x+3=0，分数写 3/4，根号写 √5），禁止 LaTeX 与 Markdown 符号；"
+    "回答结构清晰、分点分步，鼓励为主但直指要害。"
+)
+
+
+@app.route("/teacher")
+def teacher():
+    msgs = q("SELECT * FROM chat_log ORDER BY id DESC LIMIT 60")
+    msgs = list(reversed(msgs))
+    return render_template("teacher.html", msgs=msgs)
+
+
+@app.route("/teacher_send", methods=["POST"])
+def teacher_send():
+    text = (request.form.get("text", "") or "").strip()[:2000]
+    custom = request.form.get("custom", "")
+    if custom == "plan":
+        text = ("请结合我的全部学习数据（各科掌握度、错题与错因、测评画像、逻辑缺陷、游戏化数据），"
+                "为我量身定制一份系统性的提升方案：总体判断 → 各科优先级排序（说明为什么）→ "
+                "四周行动计划（每周具体做什么，结合我的兴趣场景）→ 每周三件事 → 需要家长配合的一件事。")
+    if not text:
+        return jsonify({"ok": False, "msg": "请输入问题"})
+    run("INSERT INTO chat_log (role, content, created) VALUES ('user', ?, ?)", (text, now_iso()))
+    history = [(r["role"], r["content"]) for r in q(
+        "SELECT role, content FROM (SELECT * FROM chat_log ORDER BY id DESC LIMIT 12) ORDER BY id ASC")]
+    messages = [{"role": "system", "content": TEACHER_SYSTEM + "\n\n【她的学习档案】\n" + teacher_context()}]
+    for role, content in history:
+        messages.append({"role": "assistant" if role == "ai" else "user", "content": content})
+    content, err = ai_chat(messages, max_tokens=3500)
+    if err:
+        run("DELETE FROM chat_log WHERE id = (SELECT MAX(id) FROM chat_log)")
+        return jsonify({"ok": False, "msg": "老师暂时不在状态（" + err + "），请再问一次"})
+    reply = plainify(content)
+    run("INSERT INTO chat_log (role, content, created) VALUES ('ai', ?, ?)", (reply, now_iso()))
+    return jsonify({"ok": True, "reply": reply})
+
+
+@app.route("/teacher_clear", methods=["POST"])
+def teacher_clear():
+    run("DELETE FROM chat_log")
+    return redirect("teacher")
 
 
 def weekly_token():

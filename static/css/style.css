@@ -521,6 +521,25 @@ label.chk em { font-style: normal; color: var(--muted); font-size: 11px; }
 .snap-verdict b { font-size: 20px; }
 .snap-verdict .tiny { color: rgba(255,255,255,.92); }
 
+.teacher-card { display: flex; flex-direction: column; min-height: 70vh; }
+.tc-head { display: flex; align-items: center; gap: 13px; padding-bottom: 12px; border-bottom: 1px solid var(--line); }
+.tc-head form { margin-left: auto; }
+.tc-avatar { font-size: 40px; }
+.tc-head h2 { margin-bottom: 2px; }
+.tc-quick { display: flex; gap: 8px; flex-wrap: wrap; padding: 12px 0; border-bottom: 1px solid var(--line); }
+.tq { background: var(--brand-soft); color: var(--brand-deep); border: 1.5px solid #e0d5f7; border-radius: 999px; padding: 6px 14px; font-size: 13px; cursor: pointer; }
+.tq:hover { border-color: var(--brand); background: #e9e1fa; }
+.tc-list { flex: 1; overflow-y: auto; padding: 16px 4px; max-height: 52vh; display: flex; flex-direction: column; gap: 12px; }
+.tc-empty { text-align: center; padding: 30px 10px; color: var(--muted); }
+.tc-msg { display: flex; }
+.tc-msg.me { justify-content: flex-end; }
+.tc-bubble { max-width: 82%; border-radius: 14px; padding: 10px 15px; font-size: 14.5px; white-space: pre-wrap; line-height: 1.75; }
+.tc-msg.ai .tc-bubble { background: #fdfcff; border: 1.5px solid var(--line); border-top-left-radius: 4px; }
+.tc-msg.me .tc-bubble { background: linear-gradient(120deg, var(--brand), #9a7bff); color: #fff; border-top-right-radius: 4px; }
+.tc-input { display: flex; gap: 10px; align-items: flex-end; padding-top: 12px; border-top: 1px solid var(--line); }
+.tc-input textarea { flex: 1; border: 1.5px solid var(--line); border-radius: 12px; padding: 10px 13px; font-size: 14.5px; font-family: inherit; resize: none; background: #fdfcff; }
+.tc-input textarea:focus { outline: 2.5px solid #e4d9f8; border-color: var(--brand); }
+
 @media (max-width: 700px) {
   .two-col { grid-template-columns: 1fr; }
   .jxgbox { height: 340px; }
@@ -540,3 +559,5 @@ label.chk em { font-style: normal; color: var(--muted); font-size: 11px; }
   .board-name { width: 104px; }
   .rh-stats { gap: 16px; }
 }
+.hchip.teacher-chip { background: #fff; color: var(--brand-deep); font-weight: 700; text-decoration: none; border-color: #fff; }
+.hchip.teacher-chip:hover { background: #f4efff; }

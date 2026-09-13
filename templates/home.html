@@ -6,6 +6,7 @@
   <div class="hero-in">
     <h1>{{ student_name }}，今天也要闪闪发光</h1>
     <div class="hero-chips">
+      <a class="hchip teacher-chip" href="{{ R }}teacher">👩‍🏫 问全能老师 →</a>
       <span class="hchip">{{ stage_name }}{% if grade %} · {{ grade }}{% endif %}</span>
       <span class="hchip">🏇 🚣 🎹</span>
       {% if exam_days is not none and exam_days > 0 %}<span class="hchip hot">⏳ 距考试 {{ exam_days }} 天</span>{% endif %}
@@ -69,6 +70,7 @@
 </div>
 
 <div class="quick-row">
+  <a href="{{ R }}teacher">👩‍🏫 全能老师</a>
   <a href="{{ R }}snap">📸 拍照答题</a>
   <a href="{{ R }}play">🎮 学习乐园</a>
   <a href="{{ R }}ceping">🧪 摸底测评{% if assess_n %}（已测 {{ assess_n }} 次）{% endif %}</a>

@@ -1,0 +1,101 @@
+{% extends "base.html" %}
+{% block title %}全能老师 · {{ site_name }}{% endblock %}
+{% block content %}
+<div class="card teacher-card">
+  <div class="tc-head">
+    <span class="tc-avatar">👩‍🏫</span>
+    <div>
+      <h2>全能老师</h2>
+      <p class="tiny">全科目对话解答 · 深入思考 · 已读取你的掌握度/错题/测评数据，因材施教</p>
+    </div>
+    <form method="post" action="{{ R }}teacher_clear" class="inline-form" onsubmit="return confirm('清空全部对话记录？')">
+      <button class="btn ghost sm" type="submit">🧹 清空</button>
+    </form>
+  </div>
+  <div class="tc-quick">
+    <button class="tq" data-q="我这次数学错题里最常见的问题是什么？该怎么练？">📊 分析我的薄弱点</button>
+    <button class="tq" data-q="结合我的错题本，讲讲我逻辑上最容易犯的错，举几个例子教我避开">🧠 我的逻辑误区</button>
+    <button class="tq" data-q="用我感兴趣的赛艇、马术或钢琴出3道适合我当前进度的题考考我">🎯 出题考我</button>
+    <button class="tq" data-q="plan" data-plan="1">📋 定制提升方案</button>
+  </div>
+  <div class="tc-list" id="chatList">
+    {% if not msgs %}
+    <div class="tc-empty">
+      <p class="big-ok">👩‍🏫</p>
+      <p>你好，曼清！我是你的全能老师。</p>
+      <p class="tiny">任何科目的问题都可以问我；我了解你的学习档案，会给最适合你的讲解与建议。</p>
+    </div>
+    {% endif %}
+    {% for msg in msgs %}
+    <div class="tc-msg {{ 'ai' if msg.role == 'ai' else 'me' }}">
+      <div class="tc-bubble">{{ msg.content }}</div>
+    </div>
+    {% endfor %}
+  </div>
+  <div class="tc-input">
+    <textarea id="chatInput" rows="2" placeholder="问任何科目的问题…（Enter 发送，Shift+Enter 换行）"></textarea>
+    <button class="btn" id="chatSend" type="button">发送</button>
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+(function () {
+  var list = document.getElementById('chatList');
+  var input = document.getElementById('chatInput');
+  var send = document.getElementById('chatSend');
+  function scroll() { list.scrollTop = list.scrollHeight; }
+  scroll();
+  function addMsg(cls, text) {
+    var d = document.createElement('div');
+    d.className = 'tc-msg ' + cls;
+    var b = document.createElement('div');
+    b.className = 'tc-bubble';
+    b.textContent = text;
+    d.appendChild(b);
+    list.appendChild(d);
+    scroll();
+    return b;
+  }
+  var busy = false;
+  function doSend(text, plan) {
+    if (busy || (!text && !plan)) return;
+    busy = true;
+    send.disabled = true;
+    if (text) addMsg('me', text);
+    var think = addMsg('ai', '');
+    think.innerHTML = '<span class="spinner"></span>老师正在深入思考…（结合你的学习数据，约需几秒到半分钟）';
+    var fd = new FormData();
+    fd.append('text', text || '');
+    if (plan) fd.append('custom', 'plan');
+    fetch((window.APP_ROOT || '') + 'teacher_send', { method: 'POST', body: fd })
+      .then(function (r) { return r.json(); })
+      .then(function (d) {
+        think.remove();
+        if (d.ok) { addMsg('ai', d.reply); }
+        else { alert(d.msg || '发送失败'); }
+      })
+      .catch(function () { think.remove(); alert('网络异常，请重试'); })
+      .finally(function () { busy = false; send.disabled = false; });
+  }
+  send.addEventListener('click', function () {
+    var t = input.value.trim();
+    if (!t) return;
+    input.value = '';
+    doSend(t, false);
+  });
+  input.addEventListener('keydown', function (e) {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      send.click();
+    }
+  });
+  document.querySelectorAll('.tq').forEach(function (b) {
+    b.addEventListener('click', function () {
+      if (b.dataset.plan) { doSend('', true); }
+      else { doSend(b.dataset.q, false); }
+    });
+  });
+})();
+</script>
+{% endblock %}
