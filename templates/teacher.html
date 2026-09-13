@@ -29,10 +29,17 @@
     {% for msg in msgs %}
     <div class="tc-msg {{ 'ai' if msg.role == 'ai' else 'me' }}">
       {% if msg.role == 'ai' %}<span class="tc-mini"><img src="{{ R }}static/img/teacher.svg" alt=""></span>{% endif %}
-      <div class="tc-bubble">
-        {% if msg.video %}<p class="tc-video-tag">🎬 视频（已按关键帧分析）</p>{% endif %}
-        {% if msg.img %}<a href="{{ R }}photo/{{ msg.img }}" target="_blank"><img class="tc-img" src="{{ R }}photo/{{ msg.img }}" alt=""></a>{% endif %}
-        {{ msg.content }}
+      <div class="tc-fx">
+        <div class="tc-bubble">
+          {% if msg.video %}<p class="tc-video-tag">🎬 视频（已按关键帧分析）</p>{% endif %}
+          {% if msg.img %}<a href="{{ R }}photo/{{ msg.img }}" target="_blank"><img class="tc-img" src="{{ R }}photo/{{ msg.img }}" alt=""></a>{% endif %}
+          {{ msg.content }}
+        </div>
+        {% if msg.role == 'ai' %}<div class="tc-actions">
+          <button class="tca" data-act="copy" type="button">📋 复制</button>
+          <button class="tca" data-act="img" type="button">📷 存图/分享</button>
+          <button class="tca" data-act="txt" type="button">📄 下载TXT</button>
+        </div>{% endif %}
       </div>
     </div>
     {% endfor %}
@@ -127,10 +134,27 @@
       av.innerHTML = '<img src="' + (window.APP_ROOT || '') + 'static/img/teacher.svg" alt="">';
       d.appendChild(av);
     }
+    var fx = document.createElement('div');
+    fx.className = 'tc-fx';
     var b = document.createElement('div');
     b.className = 'tc-bubble';
     b.textContent = text;
-    d.appendChild(b);
+    fx.appendChild(b);
+    if (cls === 'ai') {
+      var acts = document.createElement('div');
+      acts.className = 'tc-actions';
+      ['📋 复制|copy', '📷 存图/分享|img', '📄 下载TXT|txt'].forEach(function (p) {
+        var lb = p.split('|');
+        var btn = document.createElement('button');
+        btn.className = 'tca';
+        btn.type = 'button';
+        btn.textContent = lb[0];
+        btn.dataset.act = lb[1];
+        acts.appendChild(btn);
+      });
+      fx.appendChild(acts);
+    }
+    d.appendChild(fx);
     list.appendChild(d);
     scroll();
     return b;
@@ -196,4 +220,60 @@
   });
 })();
 </script>
+<script>
+document.addEventListener('click', function (e) {
+  var btn = e.target.closest('.tca');
+  if (!btn) return;
+  var fx = btn.closest('.tc-fx');
+  var bubble = fx && fx.querySelector('.tc-bubble');
+  if (!bubble) return;
+  var text = bubble.innerText.replace(/^\s*/, '');
+  var act = btn.dataset.act;
+  if (act === 'copy') {
+    if (navigator.clipboard) {
+      navigator.clipboard.writeText(text).then(function () { flash('已复制到剪贴板'); });
+    } else {
+      var ta = document.createElement('textarea');
+      ta.value = text; document.body.appendChild(ta); ta.select();
+      document.execCommand('copy'); ta.remove(); flash('已复制到剪贴板');
+    }
+  } else if (act === 'txt') {
+    var blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = '老师解答.txt';
+    a.click();
+    setTimeout(function () { URL.revokeObjectURL(a.href); }, 3000);
+  } else if (act === 'img') {
+    if (typeof html2canvas === 'undefined') { alert('组件未加载，请刷新'); return; }
+    btn.textContent = '生成中…';
+    html2canvas(bubble, { scale: 2, backgroundColor: '#fdfcff', useCORS: true, logging: false }).then(function (canvas) {
+      btn.textContent = '📷 存图/分享';
+      canvas.toBlob(function (b2) {
+        var file = new File([b2], '老师解答.png', { type: 'image/png' });
+        if (navigator.canShare && navigator.canShare({ files: [file] })) {
+          navigator.share({ files: [file], title: '老师解答' }).catch(function () {});
+        } else {
+          var a2 = document.createElement('a');
+          a2.href = URL.createObjectURL(b2);
+          a2.download = '老师解答.png';
+          a2.click();
+          setTimeout(function () { URL.revokeObjectURL(a2.href); }, 4000);
+        }
+      }, 'image/png');
+    }).catch(function () { btn.textContent = '📷 存图/分享'; alert('生成失败，请重试'); });
+  }
+});
+function flash(msg) {
+  var t = document.createElement('div');
+  t.className = 'xp-toast';
+  t.textContent = msg;
+  document.body.appendChild(t);
+  setTimeout(function () { t.classList.add('show'); }, 30);
+  setTimeout(function () { t.classList.remove('show'); }, 2000);
+  setTimeout(function () { t.remove(); }, 2600);
+}
+</script>
+<script src="{{ R }}static/js/html2canvas.js"></script>
+
 {% endblock %}
