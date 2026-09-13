@@ -513,6 +513,14 @@ label.chk em { font-style: normal; color: var(--muted); font-size: 11px; }
 .fill-banner { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; background: #fff7ed; border: 1.5px dashed #f3c88a; border-radius: 10px; padding: 10px 14px; margin: 10px 0; font-size: 13.5px; color: #96601a; }
 .q-item.doneq { opacity: .75; background: #f9f8fd; }
 
+.snap-verdict { display: flex; align-items: center; gap: 14px; border-radius: 14px; padding: 16px 20px; margin-bottom: 16px; color: #fff; }
+.snap-verdict.good { background: linear-gradient(120deg, #2f9e6e, #35b37c); }
+.snap-verdict.warn { background: linear-gradient(120deg, #d98324, #e69a4a); }
+.snap-verdict.bad { background: linear-gradient(120deg, #d95c5c, #e57979); }
+.snap-verdict .sv-icon { font-size: 34px; }
+.snap-verdict b { font-size: 20px; }
+.snap-verdict .tiny { color: rgba(255,255,255,.92); }
+
 @media (max-width: 700px) {
   .two-col { grid-template-columns: 1fr; }
   .jxgbox { height: 340px; }

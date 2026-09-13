@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% block title %}判定结果 · {{ site_name }}{% endblock %}
+{% block content %}
+<div class="card quiz-card" style="max-width:720px">
+  <div class="snap-verdict {{ 'good' if is_right else ('warn' if '半' in verdict else 'bad') }}">
+    <span class="sv-icon">{{ '✅' if is_right else ('◐' if '半' in verdict else '❌') }}</span>
+    <div>
+      <b>{{ verdict or '判定完成' }}</b>
+      <p class="tiny">{{ '漂亮！+10 XP 已到账' if is_right else '答错了没关系——存入错题本，AI 会精讲并安排复习' }}</p>
+    </div>
+  </div>
+
+  <div class="q-item">
+    <p class="q-title"><b>题目</b></p>
+    <p class="q-text">{{ title }}</p>
+    {% if photo_name %}<a class="photo-link" href="{{ R }}photo/{{ photo_name }}" target="_blank">🖼 查看原图</a>{% endif %}
+    <p class="tiny">✍️ 我的作答：{{ answer }}</p>
+  </div>
+
+  <div class="ai-block ans">
+    <h3>✅ 正确答案</h3>
+    <p class="pre">{{ ans }}</p>
+  </div>
+  {% if steps %}
+  <div class="ai-block analysis">
+    <h3>📝 解答过程</h3>
+    <p class="pre">{{ steps }}</p>
+  </div>
+  {% endif %}
+  <div class="ai-block advice">
+    <h3>🔍 点评</h3>
+    <p class="pre">{{ comment }}</p>
+  </div>
+
+  <div class="btn-row">
+    {% if not is_right %}
+    <a class="btn" href="{{ R }}{{ mb_url }}">📥 存入错题本（AI 深度精讲）</a>
+    {% endif %}
+    <a class="btn ghost" href="{{ R }}snap">📸 再拍一题</a>
+  </div>
+</div>
+{% endblock %}

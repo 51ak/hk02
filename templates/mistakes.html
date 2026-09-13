@@ -13,10 +13,10 @@
       <input type="hidden" name="photo_name" id="photoName" value="{{ prefill_photo }}">
     </label>
     <label class="wide seg-print">原题（印刷体）<span class="req">*</span>
-      <textarea name="title" rows="3" id="titleInput" required placeholder="拍照自动识别，或手动抄题干（可简写关键条件）"></textarea>
+      <textarea name="title" rows="3" id="titleInput" required placeholder="拍照自动识别，或手动抄题干（可简写关键条件）">{{ prefill_title }}</textarea>
     </label>
     <label class="wide seg-mine">我当时的作答（手写，供 AI 对比分析）
-      <textarea name="answer" rows="2" id="mineInput" placeholder="留空也可——AI 会依据原题解答并分析"></textarea>
+      <textarea name="answer" rows="2" id="mineInput" placeholder="留空也可——AI 会依据原题解答并分析">{{ prefill_answer }}</textarea>
     </label>
     <label class="wide seg-corr">红笔订正内容（如有）
       <textarea name="correction" rows="2" id="corrInput" placeholder="老师或自己用红笔订正的部分，AI 会对比订正与你的思路差异"></textarea>

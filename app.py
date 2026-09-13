@@ -1123,6 +1123,8 @@ def mistakes():
         kps = q("SELECT * FROM kp WHERE subject=? ORDER BY id", (subject,))
     return render_template("mistakes.html", rows=rows, kps=kps, causes=CAUSES,
                            logic_types=LOGIC_TYPES, prefill_photo=request.args.get("photo", ""),
+                           prefill_title=request.args.get("t", "")[:800],
+                           prefill_answer=request.args.get("a", "")[:400],
                            status=status, cause=cause, stage_name=seed_data.STAGES.get(stage, stage))
 
 
@@ -1772,6 +1774,59 @@ def ceping_delete():
         if row and not row["done"]:
             run("DELETE FROM assessments WHERE id=?", (aid,))
     return redirect("ceping")
+
+
+@app.route("/snap")
+def snap():
+    return render_template("snap.html", prefill_title=request.args.get("t", ""),
+                           prefill_answer=request.args.get("a", ""),
+                           prefill_photo=request.args.get("photo", ""))
+
+
+@app.route("/snap_check", methods=["POST"])
+def snap_check():
+    title = request.form.get("title", "").strip()
+    answer = request.form.get("answer", "").strip()
+    photo_name = request.form.get("photo_name", "").strip()
+    if not title or not answer:
+        return render_template("snap.html", prefill_title=title, prefill_answer=answer,
+                               prefill_photo=photo_name, error="请填写题目和你的作答")
+    grade = cfg("grade", "初二")
+    ask = (
+        f"{profile_text()}\n科目未知（请根据题目自动判断，点评时注明是哪一科）\n\n"
+        f"【题目（可能来自拍照识别，含OCR噪音请智能纠错）】\n{title}\n\n"
+        f"【她的作答】\n{answer}\n\n"
+        "请严格按以下小节输出，直接以方括号标题开头：\n"
+        "【判定】对 / 半对 / 错（三选一，根据她的作答与正确答案比对）\n"
+        "【正确答案】最终答案（简洁明确）\n"
+        "【解答过程】分步编号，适合该年级学生自学\n"
+        "【点评】先说她的作答哪里好/哪里错（引用她的原话），再给一条针对性建议；如非数学题按学科特点点评"
+    )
+    content, err = ai_chat([
+        {"role": "system", "content": "你是一名经验丰富的中学教师，判卷公正、讲评清晰。"},
+        {"role": "user", "content": ask},
+    ])
+    if err:
+        return render_template("snap.html", prefill_title=title, prefill_answer=answer,
+                               prefill_photo=photo_name, error="AI 判定失败：" + err + "，请重试（作答已保留）")
+    sec = _sections(content, ["【判定】", "【正确答案】", "【解答过程】", "【点评】"],
+                    ["verdict", "ans", "steps", "comment"])
+    if sec is None:
+        sec = {"verdict": "", "ans": content.strip()[:1500], "steps": "", "comment": ""}
+    verdict = sec.get("verdict", "")[:20]
+    is_right = verdict.startswith("对")
+    if is_right:
+        leveled, lv = add_xp(10, "拍照答题")
+        gx = f"&gx=10" + (f"&lv={lv}" if leveled else "")
+    else:
+        gx = ""
+    import urllib.parse as _up
+    to_mb = _up.quote(title[:800])
+    ao = _up.quote(answer[:400])
+    return render_template("snap_result.html", title=title, answer=answer, photo_name=photo_name,
+                           verdict=verdict, ans=sec.get("ans", ""), steps=sec.get("steps", ""),
+                           comment=plainify(sec.get("comment", "")), is_right=is_right,
+                           mb_url=f"mistakes?photo={_up.quote(photo_name)}&t={to_mb}&a={ao}", gx=gx)
 
 
 def weekly_token():

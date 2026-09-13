@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% block title %}拍照答题 · {{ site_name }}{% endblock %}
+{% block content %}
+<div class="card quiz-card" style="max-width:720px">
+  <h2>📸 拍照答题</h2>
+  <p class="tiny">拍下题目 → 自己作答 → AI 当场判定并讲评。答错可一键存入错题本做精讲与间隔复习，答对直接 +10 XP。</p>
+  {% if error %}<p class="alert">{{ error }}</p>{% endif %}
+  <form method="post" action="{{ R }}snap_check">
+    <label class="wide photo-field">
+      拍照 / 上传题目图片（自动识别题干）
+      <input type="file" name="photo" id="photoInput" accept="image/*" capture="environment">
+      <span class="tiny" id="ocrStatus">选图后自动识别印刷题干填入下方（可修改）；无图也可手动输入</span>
+      <img id="photoPreview" class="photo-preview" style="display:none" alt="">
+      <input type="hidden" name="photo_name" id="photoName" value="{{ prefill_photo }}">
+    </label>
+    <label class="wide seg-print">题目 <span class="req">*</span>
+      <textarea name="title" id="titleInput" rows="3" required placeholder="拍照自动识别，或手动输入题干">{{ prefill_title }}</textarea>
+    </label>
+    <label class="wide seg-mine">我的作答 <span class="req">*</span>
+      <textarea name="answer" rows="3" required placeholder="写下你的答案或解题过程（过程详细判定更准）">{{ prefill_answer }}</textarea>
+    </label>
+    <div class="btn-row">
+      <button class="btn big" type="submit">提交，AI 判定</button>
+    </div>
+  </form>
+</div>
+{% endblock %}
