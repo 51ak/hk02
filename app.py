@@ -123,7 +123,7 @@ def ai_solve_chinese(m, kp_name, grade, stage_name):
     correction = (m["correction"] or "").strip()
     logic = f"；逻辑/思路自评：{m['logic_type']}" if m["logic_type"] else ""
     user = (
-        f"【年级】{grade}（{stage_name}；教材版本：{textbook_of('chinese')}）\n"
+        f"【年级】{grade}（{stage_name}；教材版本：{textbook_of('chinese')}；{learned_scope_text()}）\n"
         f"【文章与题目（印刷体识别，可能含OCR噪音，请智能复原文意）】\n{m['title']}\n\n"
         f"【黄曼清的作答（手写识别，往往被判错）】\n{my_answer}\n\n"
         f"【标准答案（红笔/彩色笔手写订正，或与题目同字体的印刷体答案；未提供则留空）】\n{correction or '未提供'}\n\n"
@@ -198,7 +198,7 @@ def ai_solve_mistake(m, kp_name, grade, stage_name):
     except Exception:
         photo_path = ""
     user = (
-        f"【年级】{grade}（{stage_name}；教材版本：{textbook_of(msubj)}）\n"
+        f"【年级】{grade}（{stage_name}；教材版本：{textbook_of(msubj)}；{learned_scope_text()}，解题与讲解不得超纲）\n"
         f"【原题（印刷体识别，请以此为准解题）】{m['title']}\n"
         "(以上文字可能来自OCR，可能有识别噪音，请智能纠错理解题意)\n"
         + mine_block + corr_block +
@@ -534,6 +534,10 @@ def init_db():
     if "subject" not in kcols:
         db.execute("ALTER TABLE kp ADD COLUMN subject TEXT DEFAULT 'math'")
         db.commit()
+    kcols2 = [r[1] for r in db.execute("PRAGMA table_info(kp)").fetchall()]
+    if "term" not in kcols2:
+        db.execute("ALTER TABLE kp ADD COLUMN term TEXT DEFAULT ''")
+        db.commit()
     mcols = [r[1] for r in db.execute("PRAGMA table_info(mistakes)").fetchall()]
     if "logic_type" not in mcols:
         db.execute("ALTER TABLE mistakes ADD COLUMN logic_type TEXT DEFAULT ''")
@@ -579,6 +583,11 @@ def init_db():
                 db.execute("INSERT INTO kp (stage, module, name, subject) VALUES ('cj',?,?,?)",
                            (meta["name"], board, code))
         db.commit()
+    for row in db.execute("SELECT id, name, term FROM kp WHERE subject='math'").fetchall():
+        want = seed_data.KP_TERM.get(row[1], "")
+        if want and row[2] != want:
+            db.execute("UPDATE kp SET term=? WHERE id=?", (want, row[0]))
+    db.commit()
     if q1_static(db, "SELECT COUNT(*) c FROM questions")["c"] == 0:
         rows = db.execute("SELECT id, stage, module, name FROM kp").fetchall()
         index = {}
@@ -699,19 +708,37 @@ def weak_kps(stage, n=6):
     )
 
 
+
+def learned_scope_text():
+    term, desc = seed_data.learned_desc(cfg("grade", "初二"), date.today().month)
+    if not term:
+        return "高中阶段，按年级整体命题"
+    return f"她当前为{cfg('grade', '初二')}{seed_data.TERM_NAME[term]}学期（按今天日期自动推算），已学范围：{desc}"
+
+
+def allowed_terms_sql():
+    term, terms = seed_data.current_term(cfg("grade", "初二"), date.today().month)
+    if not terms:
+        return "", []
+    marks = ",".join("?" * len(terms))
+    return f" AND (k.term IS NULL OR k.term='' OR k.term IN ({marks}))", list(terms)
+
+
 def pick_questions(stage, kp_ids, count):
+    tcond, targs = allowed_terms_sql()
     if kp_ids:
         marks = ",".join("?" * len(kp_ids))
         rows = q(
             f"""SELECT qq.*, k.module, k.name FROM questions qq JOIN kp k ON qq.kp_id=k.id
-                WHERE k.stage=? AND qq.kp_id IN ({marks})""",
-            (stage, *kp_ids),
+                WHERE k.stage=?{tcond} AND qq.kp_id IN ({marks})""",
+            (stage, *targs, *kp_ids),
         )
     else:
+        tcond, targs = allowed_terms_sql()
         rows = q(
-            """SELECT qq.*, k.module, k.name FROM questions qq JOIN kp k ON qq.kp_id=k.id
-               WHERE k.stage=?""",
-            (stage,),
+            f"""SELECT qq.*, k.module, k.name FROM questions qq JOIN kp k ON qq.kp_id=k.id
+                WHERE k.stage=?{tcond}""",
+            (stage, *targs),
         )
     buckets = {}
     for r in rows:
@@ -1506,7 +1533,7 @@ def subject_gen_report(code):
     score_txt = "；".join(f"{s['date']}{s['kind']}{s['score']:g}/{s['full']:g}" for s in scores) or "暂无"
     assess_txt = "\n".join(f"- {seed_data.ASSESS_KIND_LABEL.get(a['kind'], a['kind'])}（{a['created'][:10]}）：{a['report'][:300]}" for a in assess) or "暂无"
     ask = (
-        f"{profile_text()}\n科目：【{meta['name']}】（教材版本：{textbook_of(code)}）\n\n"
+        f"{profile_text()}\n科目：【{meta['name']}】（教材版本：{textbook_of(code)}；{learned_scope_text()}，只分析已学内容）\n\n"
         f"板块掌握度：{board_txt}\n错因分布：{cause_txt}\n近期成绩：{score_txt}\n"
         f"近期测评结论：\n{assess_txt}\n\n"
         "请严格按以下小节输出，直接以方括号标题开头：\n"
@@ -1561,7 +1588,7 @@ def story_start():
     ch = entry.get("chapter", 0) + 1
     summary = entry.get("summary", "")
     ask = (
-        f"{profile_text()}\n请为她创作互动学习冒险《{meta['name']}》第 {ch} 章。\n"
+        f"{profile_text()}\n{learned_scope_text()}\n请为她创作互动学习冒险《{meta['name']}》第 {ch} 章。\n"
         + (f"上一章结局梗概（要衔接）：{summary}\n" if summary else "这是第一章：交代背景、目标与悬念钩子。\n")
         + "输出结构：剧情引子（80~120字，扣人心弦，场景结合她的兴趣）→ 3 道由剧情自然引出的题目"
         "（覆盖数学/逻辑推理/学科常识，难度中等，题干带剧情情境）→ 每题参考答案。\n"
@@ -1639,8 +1666,9 @@ def challenge():
 @app.route("/challenge_start", methods=["POST"])
 def challenge_start():
     stage = cfg("stage", "cj")
-    rows = q("""SELECT qq.id FROM questions qq JOIN kp ON qq.kp_id=kp.id
-                WHERE kp.subject='math' AND kp.stage=?""", (stage,))
+    tcond, targs = allowed_terms_sql()
+    rows = q(f"""SELECT qq.id FROM questions qq JOIN kp ON qq.kp_id=kp.id
+                 WHERE kp.subject='math' AND kp.stage=?{tcond}""", (stage, *targs))
     ids = [r["id"] for r in rows]
     random.shuffle(ids)
     import time as _t
@@ -1793,7 +1821,7 @@ def snap_check():
                                prefill_photo=photo_name, error="请填写题目和你的作答")
     grade = cfg("grade", "初二")
     ask = (
-        f"{profile_text()}\n科目未知（请根据题目自动判断，点评时注明是哪一科）\n\n"
+        f"{profile_text()}\n{learned_scope_text()}（若判定为数学题，解题方法不得超纲）\n科目未知（请根据题目自动判断，点评时注明是哪一科）\n\n"
         f"【题目（可能来自拍照识别，含OCR噪音请智能纠错）】\n{title}\n\n"
         f"【她的作答】\n{answer}\n\n"
         "请严格按以下小节输出，直接以方括号标题开头：\n"
@@ -1964,7 +1992,7 @@ def gen_questions_ai(subject_code, kind):
     if kind in ("subject", "practice"):
         purpose = "一套学科摸底卷" if kind == "subject" else "一组课后专项练习"
         ask = (
-            f"请为{profile_text()}出{purpose}【{meta.get('name', subject_code)}】（教材版本：{textbook_of(subject_code)}）共 {n} 题，"
+            f"请为{profile_text()}出{purpose}【{meta.get('name', subject_code)}】（教材版本：{textbook_of(subject_code)}；{learned_scope_text()}，只出已学范围内的内容，严禁超纲）共 {n} 题，"
             f"覆盖板块：{'、'.join(meta.get('boards', []))}，难度由易到难阶梯分布。"
             "其中至少 1 题情境结合她的兴趣（马术/赛艇/钢琴），让题目亲切有趣。"
             "题型以简答为主（可含 1 道默写/计算/赏析）。"
@@ -2168,8 +2196,9 @@ def practice():
     modules = []
     for r in q("SELECT DISTINCT module FROM kp WHERE stage=? ORDER BY module", (stage,)):
         modules.append(r["module"])
+    _, scope_desc = seed_data.learned_desc(cfg("grade", "初二"), date.today().month)
     return render_template("practice.html", kps=kps, weak=weak, weak_ids=weak_ids,
-                           counts=counts, modules=modules)
+                           counts=counts, modules=modules, scope_desc=scope_desc)
 
 
 @app.route("/practice_start", methods=["POST"])

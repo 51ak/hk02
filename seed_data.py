@@ -597,3 +597,36 @@ SKILLS = {
         ("日常训练", "专项即优势", "马术与赛艇训练本身就是绝佳的核心力量与耐力练习；注意训练与休息交替，考前避免伤病比加练更重要。"),
     ],
 }
+
+TERM_ORDER = ["7a", "7b", "8a", "8b", "9a", "9b"]
+TERM_NAME = {"7a": "七年级上", "7b": "七年级下", "8a": "八年级上", "8b": "八年级下", "9a": "九年级上", "9b": "九年级下"}
+
+KP_TERM = {
+    "实数与运算": "7a", "整式与因式分解": "7b", "分式": "8b", "二次根式": "8b",
+    "一元一次方程": "7a", "二元一次方程组": "7b", "一元二次方程": "9a", "分式方程": "8b",
+    "一元一次不等式（组）": "7b",
+    "函数基础与坐标系": "8a", "一次函数": "8a", "反比例函数": "8b", "二次函数": "9a",
+    "线与角": "7a", "三角形基础": "7b", "全等三角形": "8a", "相似三角形": "9a", "勾股定理": "8a",
+    "多边形与四边形": "8a", "圆的性质": "9a", "与圆有关的计算": "9a",
+    "图形的变换": "7b", "锐角三角函数": "9b", "解直角三角形": "9b",
+    "数据分析": "8a", "统计图表": "7a", "概率初步": "8b",
+}
+
+GRADE_NUM = {"初一": 7, "初二": 8, "初三": 9, "高一": 10, "高二": 11, "高三": 12}
+
+
+def current_term(grade, month, day=15):
+    n = GRADE_NUM.get(grade, 8)
+    if n >= 10:
+        return None, None
+    half = "a" if (month >= 9 or month == 1) else "b"
+    term = f"{n}{half}"
+    idx = TERM_ORDER.index(term)
+    return term, TERM_ORDER[:idx + 1]
+
+
+def learned_desc(grade, month):
+    term, terms = current_term(grade, month)
+    if not terms:
+        return "", "高中阶段（按年级整体出题）"
+    return term, "、".join(TERM_NAME[t] for t in terms)

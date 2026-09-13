@@ -3,7 +3,7 @@
 {% block content %}
 <div class="card">
   <h2>智能练习</h2>
-  <p class="tiny">选题引擎：优先薄弱知识点 + 模块交错出题（交错练习比集中刷题记忆更牢）。</p>
+  <p class="tiny">选题引擎：优先薄弱知识点 + 模块交错出题（交错练习比集中刷题记忆更牢）。出题范围：<b>{{ scope_desc }}</b>（按年级与日期自动推算，不超纲）。</p>
 
   <form method="post" action="{{ R }}practice_start" class="mode-form">
     <input type="hidden" name="mode" value="weak">
