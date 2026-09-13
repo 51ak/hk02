@@ -579,3 +579,4 @@ label.chk em { font-style: normal; color: var(--muted); font-size: 11px; }
 .tc-actions:hover { opacity: 1; }
 .tca { border: 1.5px solid var(--line); background: #fff; color: var(--muted); border-radius: 999px; font-size: 12px; padding: 3px 11px; cursor: pointer; }
 .tca:hover { color: var(--brand-deep); border-color: var(--brand); background: var(--brand-soft); }
+.tc-fig { width: 100%; max-width: 420px; height: 320px; margin-top: 8px; }

@@ -535,6 +535,8 @@ def init_db():
         db.execute("ALTER TABLE chat_log ADD COLUMN img TEXT DEFAULT ''")
     if "video" not in chatcols:
         db.execute("ALTER TABLE chat_log ADD COLUMN video INTEGER DEFAULT 0")
+    if "figure" not in chatcols:
+        db.execute("ALTER TABLE chat_log ADD COLUMN figure TEXT DEFAULT ''")
     db.commit()
     scols = [r[1] for r in db.execute("PRAGMA table_info(scores)").fetchall()]
     if "subject" not in scols:
@@ -1899,6 +1901,9 @@ TEACHER_SYSTEM = (
     "涉及她薄弱科目的知识问题时主动关联她的错题与掌握度；她在的年级范围外的知识先确认是否需要拓展。"
     "数学公式用纯文本写（如 x²−4x+3=0，分数写 3/4，根号写 √5），禁止 LaTeX 与 Markdown 符号；"
     "回答结构清晰、分点分步，鼓励为主但直指要害。"
+    "\n绘图技能：当讲解涉及几何图形、函数图象或示意关系时，必须在回答的最后一节输出"
+    "\n" + FIGURE_PROMPT +
+    "非图形问题不要输出该节。"
 )
 
 
@@ -1980,9 +1985,17 @@ def teacher_send():
     if err:
         run("DELETE FROM chat_log WHERE id = (SELECT MAX(id) FROM chat_log)")
         return jsonify({"ok": False, "msg": "老师暂时不在状态（" + err + "），请再问一次"})
+    fig = None
+    figjson_txt = ""
+    mfig = re.search(r"【图形JSON】([\s\S]*?)(?=【|$)", content or "")
+    if mfig:
+        figjson_txt = mfig.group(1)
+        fig = parse_figure_json(figjson_txt)
+        content = content.replace(mfig.group(0), "")
     reply = plainify(content)
-    run("INSERT INTO chat_log (role, content, created) VALUES ('ai', ?, ?)", (reply, now_iso()))
-    return jsonify({"ok": True, "reply": reply})
+    run("INSERT INTO chat_log (role, content, created, figure) VALUES ('ai', ?, ?, ?)",
+        (reply, now_iso(), json.dumps(fig, ensure_ascii=False) if fig else ""))
+    return jsonify({"ok": True, "reply": reply, "figure": fig})
 
 
 @app.route("/teacher_clear", methods=["POST"])

@@ -91,4 +91,10 @@
   }
 
   global.renderFigure = renderFigure;
+  var _uid = 0;
+  global.renderFigureInto = function (element, fig) {
+    if (!element) return;
+    if (!element.id) { element.id = 'renderfig-' + (++_uid); }
+    renderFigure(element.id, fig);
+  };
 })(window);

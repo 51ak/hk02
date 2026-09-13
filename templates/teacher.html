@@ -35,7 +35,7 @@
           {% if msg.img %}<a href="{{ R }}photo/{{ msg.img }}" target="_blank"><img class="tc-img" src="{{ R }}photo/{{ msg.img }}" alt=""></a>{% endif %}
           {{ msg.content }}
         </div>
-        {% if msg.role == 'ai' %}<div class="tc-actions">
+        {% if msg.role == 'ai' %}{% if msg.figure %}<div class="tc-fig figure-box" data-fig="{{ msg.figure }}"></div>{% endif %}<div class="tc-actions">
           <button class="tca" data-act="copy" type="button">📋 复制</button>
           <button class="tca" data-act="img" type="button">📷 存图/分享</button>
           <button class="tca" data-act="txt" type="button">📄 下载TXT</button>
@@ -194,7 +194,16 @@
     }).then(function (r) { return r.json(); })
       .then(function (d) {
         think.remove();
-        if (d.ok) { addMsg('ai', d.reply); } else { alert(d.msg || '发送失败'); me.remove(); }
+        if (d.ok) {
+          var b = addMsg('ai', d.reply);
+          if (d.figure) {
+            var fx2 = b.parentElement;
+            var figDiv = document.createElement('div');
+            figDiv.className = 'tc-fig figure-box';
+            try { renderFigureInto(figDiv, d.figure); } catch (e) {}
+            fx2.insertBefore(figDiv, b.nextSibling);
+          }
+        } else { alert(d.msg || '发送失败'); me.remove(); }
       })
       .catch(function (e) {
         if (think.parentNode) think.remove();
@@ -275,5 +284,11 @@ function flash(msg) {
 }
 </script>
 <script src="{{ R }}static/js/html2canvas.js"></script>
-
+<script src="{{ R }}static/js/jsxgraphcore.js"></script>
+<script src="{{ R }}static/js/figure.js"></script>
+<script>
+document.querySelectorAll('.tc-fig[data-fig]').forEach(function (el) {
+  try { renderFigureInto(el, JSON.parse(el.dataset.fig)); } catch (e) {}
+});
+</script>
 {% endblock %}
