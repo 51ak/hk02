@@ -530,6 +530,12 @@ def init_db():
         """
     )
     db.commit()
+    chatcols = [r[1] for r in db.execute("PRAGMA table_info(chat_log)").fetchall()]
+    if "img" not in chatcols:
+        db.execute("ALTER TABLE chat_log ADD COLUMN img TEXT DEFAULT ''")
+    if "video" not in chatcols:
+        db.execute("ALTER TABLE chat_log ADD COLUMN video INTEGER DEFAULT 0")
+    db.commit()
     scols = [r[1] for r in db.execute("PRAGMA table_info(scores)").fetchall()]
     if "subject" not in scols:
         db.execute("ALTER TABLE scores ADD COLUMN subject TEXT DEFAULT 'math'")
@@ -1911,14 +1917,65 @@ def teacher_send():
         text = ("请结合我的全部学习数据（各科掌握度、错题与错因、测评画像、逻辑缺陷、游戏化数据），"
                 "为我量身定制一份系统性的提升方案：总体判断 → 各科优先级排序（说明为什么）→ "
                 "四周行动计划（每周具体做什么，结合我的兴趣场景）→ 每周三件事 → 需要家长配合的一件事。")
-    if not text:
-        return jsonify({"ok": False, "msg": "请输入问题"})
-    run("INSERT INTO chat_log (role, content, created) VALUES ('user', ?, ?)", (text, now_iso()))
+    photo = request.files.get("photo")
+    frames_raw = request.form.get("frames", "")
+    frames = []
+    is_video = False
+    if frames_raw:
+        try:
+            frames = [f for f in json.loads(frames_raw) if isinstance(f, str)][:3]
+            is_video = bool(frames)
+        except Exception:
+            frames = []
+    if photo and photo.filename:
+        name = save_photo(photo)
+        if not name:
+            return jsonify({"ok": False, "msg": "不支持的图片格式"})
+    else:
+        name = ""
+    if not text and not name and not frames:
+        return jsonify({"ok": False, "msg": "请输入问题或添加图片/视频"})
+    if is_video and not text:
+        text = "请看这段视频的关键帧，帮我讲解"
+    elif (name or frames) and not text:
+        text = "请看这张图片，帮我讲解"
+    if is_video:
+        text = f"（附一段视频的3个关键帧，按时间顺序）{text}"
+    run("INSERT INTO chat_log (role, content, created, img, video) VALUES ('user', ?, ?, ?, ?)",
+        (text, now_iso(), name, 1 if is_video else 0))
     history = [(r["role"], r["content"]) for r in q(
         "SELECT role, content FROM (SELECT * FROM chat_log ORDER BY id DESC LIMIT 12) ORDER BY id ASC")]
     messages = [{"role": "system", "content": TEACHER_SYSTEM + "\n\n【她的学习档案】\n" + teacher_context()}]
-    for role, content in history:
+    for role, content in history[:-1]:
         messages.append({"role": "assistant" if role == "ai" else "user", "content": content})
+    last_content = text
+    images = []
+    if name:
+        path, tmp = _shrink_for_vision(os.path.join(PHOTO_DIR, name))
+        try:
+            with open(path, "rb") as f:
+                images.append("data:image/jpeg;base64," + base64.b64encode(f.read()).decode())
+        finally:
+            if tmp:
+                try:
+                    os.remove(tmp)
+                except OSError:
+                    pass
+    for f in frames:
+        m2 = re.match(r"^data:image/(png|jpeg);base64,(.+)$", f)
+        if m2:
+            try:
+                raw = base64.b64decode(m2.group(2))
+                if len(raw) < 3 * 1024 * 1024:
+                    images.append("data:image/jpeg;base64," + base64.b64encode(raw).decode())
+            except Exception:
+                pass
+    if images:
+        parts = [{"type": "text", "text": text}]
+        for img in images[:3]:
+            parts.append({"type": "image_url", "image_url": {"url": img}})
+        last_content = parts
+    messages.append({"role": "user", "content": last_content})
     content, err = ai_chat(messages, max_tokens=3500)
     if err:
         run("DELETE FROM chat_log WHERE id = (SELECT MAX(id) FROM chat_log)")

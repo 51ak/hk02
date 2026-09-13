@@ -3,10 +3,10 @@
 {% block content %}
 <div class="card teacher-card">
   <div class="tc-head">
-    <span class="tc-avatar">👩‍🏫</span>
+    <span class="tc-avatar"><img src="{{ R }}static/img/teacher.svg" alt="全能老师"></span>
     <div>
       <h2>全能老师</h2>
-      <p class="tiny">全科目对话解答 · 深入思考 · 已读取你的掌握度/错题/测评数据，因材施教</p>
+      <p class="tiny">全科目对话解答 · 支持图片/拍照/视频 · 已读取你的学习档案，因材施教</p>
     </div>
     <form method="post" action="{{ R }}teacher_clear" class="inline-form" onsubmit="return confirm('清空全部对话记录？')">
       <button class="btn ghost sm" type="submit">🧹 清空</button>
@@ -16,24 +16,38 @@
     <button class="tq" data-q="我这次数学错题里最常见的问题是什么？该怎么练？">📊 分析我的薄弱点</button>
     <button class="tq" data-q="结合我的错题本，讲讲我逻辑上最容易犯的错，举几个例子教我避开">🧠 我的逻辑误区</button>
     <button class="tq" data-q="用我感兴趣的赛艇、马术或钢琴出3道适合我当前进度的题考考我">🎯 出题考我</button>
-    <button class="tq" data-q="plan" data-plan="1">📋 定制提升方案</button>
+    <button class="tq" data-plan="1">📋 定制提升方案</button>
   </div>
   <div class="tc-list" id="chatList">
     {% if not msgs %}
     <div class="tc-empty">
-      <p class="big-ok">👩‍🏫</p>
-      <p>你好，曼清！我是你的全能老师。</p>
-      <p class="tiny">任何科目的问题都可以问我；我了解你的学习档案，会给最适合你的讲解与建议。</p>
+      <img src="{{ R }}static/img/teacher.svg" class="tc-empty-avatar" alt="">
+      <p><b>你好，曼清！我是你的全能老师。</b></p>
+      <p class="tiny">任何科目的问题都可以问我；可以发图片（试卷/课本截图）、拍照，甚至发一段视频（讲题过程、演示）。<br>我了解你的学习档案，会给最适合你的讲解与建议。</p>
     </div>
     {% endif %}
     {% for msg in msgs %}
     <div class="tc-msg {{ 'ai' if msg.role == 'ai' else 'me' }}">
-      <div class="tc-bubble">{{ msg.content }}</div>
+      {% if msg.role == 'ai' %}<span class="tc-mini"><img src="{{ R }}static/img/teacher.svg" alt=""></span>{% endif %}
+      <div class="tc-bubble">
+        {% if msg.video %}<p class="tc-video-tag">🎬 视频（已按关键帧分析）</p>{% endif %}
+        {% if msg.img %}<a href="{{ R }}photo/{{ msg.img }}" target="_blank"><img class="tc-img" src="{{ R }}photo/{{ msg.img }}" alt=""></a>{% endif %}
+        {{ msg.content }}
+      </div>
     </div>
     {% endfor %}
   </div>
+  <div class="tc-attach" id="attachBar" style="display:none">
+    <img id="attachPreview" alt="">
+    <span class="tiny" id="attachName"></span>
+    <button class="link-btn" id="attachRemove" type="button">✕ 移除</button>
+  </div>
   <div class="tc-input">
-    <textarea id="chatInput" rows="2" placeholder="问任何科目的问题…（Enter 发送，Shift+Enter 换行）"></textarea>
+    <div class="tc-tools">
+      <label class="tc-tool" title="发送图片/拍照">🖼<input type="file" id="imgInput" accept="image/*" capture="environment" hidden></label>
+      <label class="tc-tool" title="发送视频（自动截取关键帧）">🎬<input type="file" id="vidInput" accept="video/*" hidden></label>
+    </div>
+    <textarea id="chatInput" rows="2" placeholder="问任何问题…可配合图片/视频（Enter 发送）"></textarea>
     <button class="btn" id="chatSend" type="button">发送</button>
   </div>
 </div>
@@ -44,11 +58,75 @@
   var list = document.getElementById('chatList');
   var input = document.getElementById('chatInput');
   var send = document.getElementById('chatSend');
+  var attach = null, attachKind = '';
+  var bar = document.getElementById('attachBar');
+  var prev = document.getElementById('attachPreview');
+  var nameEl = document.getElementById('attachName');
   function scroll() { list.scrollTop = list.scrollHeight; }
   scroll();
+  function setAttach(kind, file, url) {
+    attach = file; attachKind = kind;
+    bar.style.display = '';
+    prev.src = url || '';
+    nameEl.textContent = (kind === 'video' ? '🎬 ' : '🖼 ') + (file && file.name || '');
+    prev.style.display = kind === 'video' ? 'none' : '';
+  }
+  document.getElementById('attachRemove').addEventListener('click', function () {
+    attach = null; attachKind = ''; bar.style.display = 'none'; prev.src = '';
+  });
+  document.getElementById('imgInput').addEventListener('change', function () {
+    var f = this.files && this.files[0];
+    if (f) setAttach('image', f, URL.createObjectURL(f));
+    this.value = '';
+  });
+  document.getElementById('vidInput').addEventListener('change', function () {
+    var f = this.files && this.files[0];
+    if (f) setAttach('video', f, '');
+    this.value = '';
+  });
+  function extractFrames(file) {
+    return new Promise(function (resolve, reject) {
+      var v = document.createElement('video');
+      v.src = URL.createObjectURL(file);
+      v.muted = true;
+      v.preload = 'auto';
+      var done = false;
+      setTimeout(function () { if (!done) { done = true; reject(); } }, 15000);
+      v.addEventListener('error', function () { if (!done) { done = true; reject(); } });
+      v.addEventListener('loadeddata', async function () {
+        try {
+          var dur = Math.min(v.duration || 3, 90);
+          var canvas = document.createElement('canvas');
+          var w = Math.min(640, v.videoWidth || 640);
+          canvas.width = w;
+          canvas.height = Math.round(w * (v.videoHeight || 480) / (v.videoWidth || 640));
+          var ctx = canvas.getContext('2d');
+          var frames = [];
+          for (var i = 0; i < 3; i++) {
+            var t = Math.max(0.1, dur * [0.12, 0.5, 0.88][i]);
+            await new Promise(function (res) {
+              var onSeek = function () { v.removeEventListener('seeked', onSeek); res(); };
+              v.addEventListener('seeked', onSeek);
+              v.currentTime = t;
+            });
+            ctx.drawImage(v, 0, 0, canvas.width, canvas.height);
+            frames.push(canvas.toDataURL('image/jpeg', 0.8));
+          }
+          done = true;
+          resolve(frames);
+        } catch (e) { if (!done) { done = true; reject(); } }
+      });
+    });
+  }
   function addMsg(cls, text) {
     var d = document.createElement('div');
     d.className = 'tc-msg ' + cls;
+    if (cls === 'ai') {
+      var av = document.createElement('span');
+      av.className = 'tc-mini';
+      av.innerHTML = '<img src="' + (window.APP_ROOT || '') + 'static/img/teacher.svg" alt="">';
+      d.appendChild(av);
+    }
     var b = document.createElement('div');
     b.className = 'tc-bubble';
     b.textContent = text;
@@ -59,41 +137,61 @@
   }
   var busy = false;
   function doSend(text, plan) {
-    if (busy || (!text && !plan)) return;
+    if (busy) return;
+    var hasAtt = !!attach;
+    if ((!text && !hasAtt && !plan)) return;
     busy = true;
     send.disabled = true;
-    if (text) addMsg('me', text);
+    var shown = text || (attachKind === 'video' ? '🎬 [视频] 请看这段视频，帮我讲解' : '🖼 [图片] 请看这张图片，帮我讲解');
+    var me = addMsg('me', shown);
     var think = addMsg('ai', '');
-    think.innerHTML = '<span class="spinner"></span>老师正在深入思考…（结合你的学习数据，约需几秒到半分钟）';
+    think.innerHTML = '<span class="spinner"></span>老师正在' + (hasAtt ? '查看你发的内容并' : '') + '深入思考…';
     var fd = new FormData();
     fd.append('text', text || '');
     if (plan) fd.append('custom', 'plan');
-    fetch((window.APP_ROOT || '') + 'teacher_send', { method: 'POST', body: fd })
-      .then(function (r) { return r.json(); })
+    var p;
+    if (attachKind === 'video') {
+      var vf = attach;
+      think.innerHTML = '<span class="spinner"></span>正在提取视频关键帧…';
+      p = extractFrames(vf).then(function (frames) {
+        fd.append('frames', JSON.stringify(frames));
+      }).catch(function () {
+        me.querySelector('.tc-bubble').textContent = '（视频读取失败，请换格式或改用截图）';
+        throw new Error('video');
+      });
+    } else if (attachKind === 'image') {
+      fd.append('photo', attach);
+      p = Promise.resolve();
+    } else {
+      p = Promise.resolve();
+    }
+    p.then(function () {
+      return fetch((window.APP_ROOT || '') + 'teacher_send', { method: 'POST', body: fd });
+    }).then(function (r) { return r.json(); })
       .then(function (d) {
         think.remove();
-        if (d.ok) { addMsg('ai', d.reply); }
-        else { alert(d.msg || '发送失败'); }
+        if (d.ok) { addMsg('ai', d.reply); } else { alert(d.msg || '发送失败'); me.remove(); }
       })
-      .catch(function () { think.remove(); alert('网络异常，请重试'); })
-      .finally(function () { busy = false; send.disabled = false; });
+      .catch(function (e) {
+        if (think.parentNode) think.remove();
+        if (e && e.message !== 'video') { alert('网络异常，请重试'); me.remove(); }
+      })
+      .finally(function () {
+        busy = false; send.disabled = false;
+        document.getElementById('attachRemove').click();
+      });
   }
   send.addEventListener('click', function () {
     var t = input.value.trim();
-    if (!t) return;
     input.value = '';
     doSend(t, false);
   });
   input.addEventListener('keydown', function (e) {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      send.click();
-    }
+    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send.click(); }
   });
   document.querySelectorAll('.tq').forEach(function (b) {
     b.addEventListener('click', function () {
-      if (b.dataset.plan) { doSend('', true); }
-      else { doSend(b.dataset.q, false); }
+      if (b.dataset.plan) { doSend('', true); } else { doSend(b.dataset.q, false); }
     });
   });
 })();
